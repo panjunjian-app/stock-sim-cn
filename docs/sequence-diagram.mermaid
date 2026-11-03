@@ -1,0 +1,43 @@
+sequenceDiagram
+    autonumber
+    actor U as 用户
+    participant OP as OrderPanel
+    participant API as POST /api/accounts/:id/orders
+    participant CAL as tradingCalendar
+    participant DB as D1
+    participant MK as MarketDataService
+    participant ME as MatchingEngine
+
+    U->>OP: 填写委托并确认
+    OP->>API: {symbol, side, orderType, price?, quantity}
+    API->>API: requireAuth + 账户属主校验
+    API->>CAL: isInTradingHours(now)?
+    CAL-->>API: true
+    API->>DB: 防刷/持仓/资金/涨跌停校验
+    alt 校验失败
+        API->>DB: orders INSERT (rejected, reason)
+        API-->>OP: 400 废单原因
+    else 校验通过
+        API->>DB: 买入冻结资金 / 卖出冻结可卖股
+        API->>MK: fetchQuotes([symbol])
+        MK-->>API: Quote{price}
+        API->>DB: orders INSERT (pending)
+        API->>ME: tryMatch(order, quote)
+        alt 可成交（市价 或 限价穿越 且 未封板）
+            ME->>DB: order=filled, trades INSERT(含三费)
+            ME->>DB: positions 更新（qty/avg_cost/日切字段）
+            ME->>DB: cash_flows INSERT（净额+费用备注）
+            ME->>DB: 资金解冻结算（多退少补）
+            API-->>OP: {matched:true, order, trade}
+        else 暂不可成交
+            API-->>OP: {matched:false, order(pending)}
+        end
+    end
+    loop 每 5 秒（账户有未成交委托时）
+        OP->>API: POST /api/market/tick {accountId}
+        API->>DB: 查 pending 委托 + 日切结算
+        API->>MK: fetchQuotes(相关标的)
+        API->>ME: 逐单 tryMatch
+        ME-->>API: matchedCount / 新成交
+        API-->>OP: 刷新委托、持仓、总览
+    end

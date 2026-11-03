@@ -1,0 +1,29 @@
+sequenceDiagram
+    autonumber
+    actor U as 用户
+    participant RP as RegisterPage
+    participant API as /api/auth/*
+    participant DB as D1
+    participant RS as Resend API
+
+    U->>RP: 第①步 输入邮箱
+    RP->>API: POST send-code {email, 'register'}
+    API->>DB: upsert email_verifications
+    API->>API: 60s 冷却 / 当日 <5 封 / 邮箱未注册
+    API->>RS: fetch POST /emails（6位随机码）
+    RS-->>API: 202 Accepted
+    API-->>RP: {sent:true}
+    RP->>RP: 60s 倒计时
+    U->>RP: 第②步 回填验证码
+    RP->>API: POST verify-code {email, code}
+    API->>DB: SHA-256(code) 比对 + 有效期 + attempts<5
+    API->>DB: verified = 1
+    API-->>RP: {verified:true}
+    U->>RP: 第③步 设置密码（强度实时校验）
+    RP->>API: POST register {email, purpose, code, password}
+    API->>DB: 复查 verified=1 + code 哈希
+    API->>API: PBKDF2 哈希密码（大写+小写+数字+标点）
+    API->>DB: users INSERT（新 email）→ 账号冲突则 409
+    API->>API: jose 签发 JWT（含 token_version）
+    API-->>RP: Set-Cookie(sim_token) + user
+    RP->>RP: 跳转账户列表页

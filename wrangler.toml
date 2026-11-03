@@ -1,0 +1,11 @@
+# Cloudflare Pages 配置：静态前端 + Functions（文件路由式 REST API）+ D1 绑定
+name = "stock-sim-cn"
+compatibility_date = "2026-09-01"
+pages_build_output_dir = "dist"
+
+# D1 数据库绑定：binding 名为 DB（functions/lib/env.ts 依赖此名）
+# 首次部署前执行：npx wrangler d1 create stock-sim-db，然后把 database_id 替换为返回值
+[[d1_databases]]
+binding = "DB"
+database_name = "stock-sim-db"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"

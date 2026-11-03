@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* MUJI 设计令牌：唯一色值来源（MUI 主题与 Tailwind 配置均引用这些 CSS 变量） */
+:root {
+  --muji-paper: #f7f5f2; /* 页面底 */
+  --muji-paper2: #eceae4; /* 次级底 */
+  --muji-card: #fdfcfa; /* 卡片底 */
+  --muji-ink: #3e3a39; /* 深棕黑文本 */
+  --muji-ink2: #6b6560; /* 次级文本 */
+  --muji-ink3: #8a8378; /* 弱文本 */
+  --muji-line: #d9d5cd; /* 细边框 */
+  --muji-line-soft: #e7e3db; /* 更浅分隔 */
+  --muji-red: #7f0019; /* MUJI 深红（品牌强调） */
+  --muji-up: #a03e35; /* 涨（柔和红，A股语义：涨红） */
+  --muji-up-bg: #f5e9e7;
+  --muji-down: #4f7d5c; /* 跌（柔和绿，A股语义：跌绿） */
+  --muji-down-bg: #e9f0ea;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: 'Helvetica Neue', Helvetica, Arial, -apple-system, BlinkMacSystemFont,
+    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  -webkit-font-smoothing: antialiased;
+  background: var(--muji-paper);
+  color: var(--muji-ink);
+}
+
+/* 数字等宽（行情/金额场景） */
+.num,
+.tabular {
+  font-variant-numeric: tabular-nums;
+}

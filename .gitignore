@@ -1,0 +1,22 @@
+# 依赖与构建产物
+node_modules/
+dist/
+*.local
+
+# 本地环境变量（绝不进 git）
+.env
+.env.*
+!.env.example
+.dev.vars
+
+# Wrangler / Cloudflare 本地状态
+.wrangler/
+
+# 编辑器与系统文件
+.vscode/
+.idea/
+.DS_Store
+
+# 日志
+npm-debug.log*
+*.log
