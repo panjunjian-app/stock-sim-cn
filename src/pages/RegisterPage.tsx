@@ -58,6 +58,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const emailOk = checkEmail(email).ok;
@@ -70,8 +71,13 @@ export default function RegisterPage() {
 
   const sendCode = async () => {
     setError(null);
+    setNotice(null);
     try {
-      await authApi.sendCode(email.trim().toLowerCase(), 'register');
+      const r = await authApi.sendCode(email.trim().toLowerCase(), 'register');
+      if (r.devCode) {
+        setCode(r.devCode);
+        setNotice('开发模式（未配置邮件服务）：验证码已自动填入');
+      }
     } catch (e) {
       setError(e instanceof ApiError ? e.message : '验证码发送失败');
       throw e;
@@ -202,6 +208,9 @@ export default function RegisterPage() {
                 />
                 <CountdownButton onSend={sendCode} />
               </Box>
+              {notice && (
+                <Typography sx={{ fontSize: 11.5, color: MUJI.ink3, mt: 0.75 }}>{notice}</Typography>
+              )}
               <Button
                 fullWidth
                 variant="contained"

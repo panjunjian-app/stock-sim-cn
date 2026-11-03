@@ -104,7 +104,7 @@ export async function sendAndLimit(
   env: Bindings,
   email: string,
   purpose: 'register' | 'reset',
-): Promise<{ sent: true }> {
+): Promise<{ sent: true; devCode?: string }> {
   const now = Date.now();
   const nowIso = new Date(now).toISOString();
   const dayKey = beijingDateKey(now);
@@ -140,6 +140,11 @@ export async function sendAndLimit(
   }).run();
 
   await sendViaResend(env, email, code);
+  // 未配置邮件服务（RESEND_API_KEY 缺失）时把验证码带回给前端自动填入，便于开箱体验；
+  // 配置 Resend 后此字段不再出现。
+  if (!env.RESEND_API_KEY) {
+    return { sent: true, devCode: code };
+  }
   return { sent: true };
 }
 

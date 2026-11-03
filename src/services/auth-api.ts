@@ -6,8 +6,8 @@ interface AuthPayload {
 }
 
 export const authApi = {
-  /** 发送验证码（purpose: register | reset） */
-  sendCode(email: string, purpose: 'register' | 'reset'): Promise<{ sent: true }> {
+  /** 发送验证码（purpose: register | reset）；未配置邮件服务时返回 devCode（开发模式自动填入） */
+  sendCode(email: string, purpose: 'register' | 'reset'): Promise<{ sent: true; devCode?: string }> {
     return apiPost('/api/auth/send-code', { email, purpose });
   },
   /** 校验验证码（服务端置 verified=1） */
