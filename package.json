@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "模拟炒股游戏（A股模拟盘）— 零成本纯模拟炒股练习平台",
+  "description": "炒炒乐（A股模拟盘）— 零成本纯模拟炒股练习游戏",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

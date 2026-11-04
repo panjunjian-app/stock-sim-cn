@@ -81,10 +81,10 @@ export default function AppLayout({ children }: PropsWithChildren) {
               justifyContent: 'center',
             }}
           >
-            模
+            炒
           </Box>
           <Typography sx={{ fontSize: 15, fontWeight: 300, letterSpacing: '0.25em', color: MUJI.ink, cursor: 'pointer' }}>
-            模拟炒股
+            炒炒乐
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 1, flex: 1 }}>

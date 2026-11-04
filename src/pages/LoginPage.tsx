@@ -66,10 +66,10 @@ export default function LoginPage() {
               fontWeight: 200,
             }}
           >
-            模
+            炒
           </Box>
           <Typography sx={{ fontSize: 22, fontWeight: 200, textAlign: 'center', mt: 3, letterSpacing: '0.5em', textIndent: '0.5em' }}>
-            模拟炒股
+            炒炒乐
           </Typography>
           <Typography sx={{ fontSize: 12, color: MUJI.ink3, textAlign: 'center', mt: 1.25, letterSpacing: '0.25em' }}>
             A股模拟盘 · 零成本学炒股

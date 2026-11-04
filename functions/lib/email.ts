@@ -79,11 +79,11 @@ async function sendViaResend(env: Bindings, email: string, code: string): Promis
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: env.EMAIL_FROM || '模拟炒股 <onboarding@resend.dev>',
+      from: env.EMAIL_FROM || '炒炒乐 <onboarding@resend.dev>',
       to: [email],
-      subject: `模拟炒股验证码：${code}`,
+      subject: `炒炒乐验证码：${code}`,
       html: `<p>你的验证码是 <strong>${code}</strong>，10 分钟内有效。</p>
-             <p>本邮件由模拟炒股平台发送（纯模拟练习环境，与真实财产无关）。</p>`,
+             <p>本邮件由炒炒乐平台发送（纯模拟练习环境，与真实财产无关）。</p>`,
     }),
   });
   if (!resp.ok) {

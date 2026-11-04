@@ -28,7 +28,7 @@ export interface Bindings {
   JWT_SECRET: string;
   /** Resend 发信密钥；本地未配置时验证码打印到控制台 */
   RESEND_API_KEY?: string;
-  /** 发件人，如 '模拟炒股 <noreply@yourdomain.dev>' */
+  /** 发件人，如 '炒炒乐 <noreply@yourdomain.dev>' */
   EMAIL_FROM?: string;
 }
 
