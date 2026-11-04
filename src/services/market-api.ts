@@ -25,6 +25,11 @@ export const marketApi = {
   async getNews(symbol: StockSymbol): Promise<{ news: StockNewsItem[]; degraded?: boolean }> {
     return apiGet(`/api/market/news?symbol=${symbol}`);
   },
+  /** 全市场股票搜索（代码/名称/拼音，东财免费 suggest 接口代理） */
+  async searchStocks(keyword: string): Promise<StockSearchItem[]> {
+    const data = await apiGet<{ items: StockSearchItem[] }>(`/api/market/search?keyword=${encodeURIComponent(keyword)}`);
+    return data.items ?? [];
+  },
 };
 
 export interface StockNewsItem {
@@ -33,4 +38,10 @@ export interface StockNewsItem {
   time: string;
   source: string;
   type: 'ann' | 'news';
+}
+
+export interface StockSearchItem {
+  symbol: string; // sh600519 / sz300308
+  name: string;
+  market: string; // 沪A / 深A
 }
