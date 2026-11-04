@@ -14,16 +14,18 @@ interface StockItem {
 
 const STOCKS = (stockList as { stocks: StockItem[] }).stocks;
 
-/** 本地股票名兜底映射（选中远程搜索的股票后，下拉框显示名称用） */
+/** 全量名称映射（本地池 + 远程搜索过的股票），选中后各处显示名称用 */
 const nameMap = new Map<string, string>(STOCKS.map((s) => [s.symbol, s.name]));
 
 export interface StockSearchProps {
   value: StockSymbol;
   onChange: (symbol: StockSymbol) => void;
+  onAddWatchlist?: (item: { symbol: string; name: string }) => void;
+  watchlistSymbols?: string[];
 }
 
 /** StockSearch — 全市场搜索（东财免费接口：代码/名称/拼音）+ 本地股票池快捷选择 */
-export default function StockSearch({ value, onChange }: StockSearchProps) {
+export default function StockSearch({ value, onChange, onAddWatchlist, watchlistSymbols = [] }: StockSearchProps) {
   const [keyword, setKeyword] = useState('');
   const [remote, setRemote] = useState<StockSearchItem[] | null>(null);
   const [searching, setSearching] = useState(false);
@@ -150,28 +152,52 @@ export default function StockSearch({ value, onChange }: StockSearchProps) {
               未找到「{keyword.trim()}」对应的沪深 A 股
             </Typography>
           ) : (
-            remote.map((it) => (
-              <Box
-                key={it.symbol}
-                onClick={() => pickRemote(it)}
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  px: 1.5,
-                  py: 0.9,
-                  cursor: 'pointer',
-                  borderBottom: `1px solid ${MUJI.lineSoft}`,
-                  '&:hover': { bgcolor: 'rgba(0,0,0,0.03)' },
-                  '&:last-child': { borderBottom: 'none' },
-                }}
-              >
-                <Typography sx={{ fontSize: 12.5, color: MUJI.ink }}>{it.name}</Typography>
-                <Typography sx={{ fontSize: 11, color: MUJI.ink3 }} className="num">
-                  {codeOf(it.symbol)} · {it.market}
-                </Typography>
-              </Box>
-            ))
+            remote.map((it) => {
+              const added = watchlistSymbols.includes(it.symbol);
+              return (
+                <Box
+                  key={it.symbol}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    px: 1.5,
+                    py: 0.9,
+                    borderBottom: `1px solid ${MUJI.lineSoft}`,
+                    '&:hover': { bgcolor: 'rgba(0,0,0,0.03)' },
+                    '&:last-child': { borderBottom: 'none' },
+                  }}
+                >
+                  <Box sx={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => pickRemote(it)}>
+                    <Typography sx={{ fontSize: 12.5, color: MUJI.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.name}</Typography>
+                    <Typography sx={{ fontSize: 10.5, color: MUJI.ink3 }} className="num">
+                      {codeOf(it.symbol)} · {it.market}
+                    </Typography>
+                  </Box>
+                  {onAddWatchlist && (
+                    <Box
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!added) onAddWatchlist({ symbol: it.symbol, name: it.name });
+                      }}
+                      sx={{
+                        flex: '0 0 auto',
+                        ml: 1,
+                        fontSize: 10.5,
+                        px: 0.75,
+                        py: '2px',
+                        borderRadius: '2px',
+                        cursor: added ? 'default' : 'pointer',
+                        ...(added
+                          ? { color: MUJI.ink3, border: `1px solid ${MUJI.line}` }
+                          : { color: MUJI.red, border: `1px solid ${MUJI.red}`, '&:hover': { bgcolor: 'rgba(240,131,0,.08)' } }),
+                      }}
+                    >
+                      {added ? '已自选' : '+ 自选'}
+                    </Box>
+                  )}
+                </Box>
+              );
+            })
           )}
         </Box>
       )}
@@ -179,5 +205,5 @@ export default function StockSearch({ value, onChange }: StockSearchProps) {
   );
 }
 
-export { STOCKS };
+export { STOCKS, nameMap };
 export type { StockItem };
