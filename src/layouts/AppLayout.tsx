@@ -46,7 +46,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
           alignItems: 'center',
           justifyContent: 'center',
           borderBottom: `1px solid ${MUJI.line}`,
-          color: MUJI.ink3,
+          color: MUJI.ink,
           fontSize: 11,
           fontWeight: 300,
           letterSpacing: '0.25em',
@@ -113,7 +113,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
             >
               {user.email.slice(0, 1).toUpperCase()}
             </Box>
-            <Typography sx={{ fontSize: 12.5, color: MUJI.ink2, letterSpacing: '0.1em' }}>{user.email}</Typography>
+            <Typography sx={{ fontSize: 12.5, color: MUJI.ink, letterSpacing: '0.1em' }}>{user.email}</Typography>
             <Button size="small" variant="text" onClick={() => void handleLogout()} sx={{ color: MUJI.ink3, fontSize: 12, letterSpacing: '0.1em' }}>
               退出
             </Button>

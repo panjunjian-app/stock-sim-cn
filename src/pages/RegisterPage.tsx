@@ -122,7 +122,7 @@ export default function RegisterPage() {
           alignItems: 'center',
           justifyContent: 'center',
           borderBottom: `1px solid ${MUJI.line}`,
-          color: MUJI.ink3,
+          color: MUJI.ink,
           fontSize: 11,
           letterSpacing: '0.25em',
         }}

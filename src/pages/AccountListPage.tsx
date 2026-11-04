@@ -89,10 +89,10 @@ export default function AccountListPage() {
             textAlign: 'center',
           }}
         >
-          <Typography sx={{ fontSize: 14, color: MUJI.ink2, fontWeight: 300, letterSpacing: '0.15em' }}>
+          <Typography sx={{ fontSize: 14, color: MUJI.ink, fontWeight: 300, letterSpacing: '0.15em' }}>
             还没有交易账户
           </Typography>
-          <Typography sx={{ fontSize: 12, color: MUJI.ink3, mt: 1 }}>
+          <Typography sx={{ fontSize: 12, color: MUJI.ink2, mt: 1 }}>
             开立你的第一个模拟账户，注入虚拟资金开始练习
           </Typography>
           <Button variant="contained" sx={{ mt: 3, height: 40, px: 3 }} onClick={() => setDialogOpen(true)}>

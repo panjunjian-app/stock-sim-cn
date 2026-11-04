@@ -41,7 +41,7 @@ export default function LoginPage() {
           alignItems: 'center',
           justifyContent: 'center',
           borderBottom: `1px solid ${MUJI.line}`,
-          color: MUJI.ink3,
+          color: MUJI.ink,
           fontSize: 11,
           fontWeight: 300,
           letterSpacing: '0.25em',
