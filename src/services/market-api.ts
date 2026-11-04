@@ -21,4 +21,16 @@ export const marketApi = {
   async getMinute(symbol: StockSymbol): Promise<{ points: MinutePoint[]; prevClose: number; degraded?: boolean }> {
     return apiGet(`/api/market/minute?symbol=${symbol}`);
   },
+  /** 个股新闻+公司公告（东方财富免费公开接口代理） */
+  async getNews(symbol: StockSymbol): Promise<{ news: StockNewsItem[]; degraded?: boolean }> {
+    return apiGet(`/api/market/news?symbol=${symbol}`);
+  },
 };
+
+export interface StockNewsItem {
+  title: string;
+  url: string;
+  time: string;
+  source: string;
+  type: 'ann' | 'news';
+}

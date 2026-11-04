@@ -7,6 +7,7 @@ import StockSearch from '../components/StockSearch';
 import QuoteHeader from '../components/QuoteHeader';
 import KLineChart from '../components/KLineChart';
 import MinuteChart from '../components/MinuteChart';
+import NewsList from '../components/NewsList';
 import MarketStatusBanner from '../components/MarketStatusBanner';
 import OrderPanel from '../components/OrderPanel';
 import { marketApi } from '../services/market-api';
@@ -245,6 +246,9 @@ export default function MarketPage() {
             </Typography>
           )}
         </Box>
+
+        {/* 相关新闻：个股经营动态与资讯（可能影响股价） */}
+        <NewsList symbol={symbol} />
       </Box>
 
       {/* 右：下单面板 */}
