@@ -4,8 +4,13 @@
  */
 import type { KLineBar, KLinePeriod, MinutePoint, Quote, Symbol as StockSymbol, Cents } from '../../shared/types';
 
-const TIMEOUT_MS = 3_000;
+const TIMEOUT_MS = 5_000;
 const YUAN_MAX = 10_000_000; // 单价合理性上限（1 万元/股），防御脏数据
+
+/** 浏览器 UA：部分上游（腾讯K线等）对无 UA 的服务端请求做风控 */
+const BROWSER_UA =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
+const TX_HEADERS = { 'User-Agent': BROWSER_UA, Referer: 'https://gu.qq.com/' };
 
 export interface KlineQuery {
   symbol: StockSymbol;
@@ -45,7 +50,7 @@ async function fetchWithTimeout(url: string, headers?: Record<string, string>): 
 
 /** qt.gtimg.cn 实时行情（GBK 编码文本） */
 async function fetchQuotesTencent(symbols: StockSymbol[]): Promise<Quote[]> {
-  const resp = await fetchWithTimeout(`https://qt.gtimg.cn/q=${symbols.join(',')}`);
+  const resp = await fetchWithTimeout(`https://qt.gtimg.cn/q=${symbols.join(',')}`, TX_HEADERS);
   if (!resp.ok) {
     throw new Error(`tencent http ${resp.status}`);
   }
@@ -142,7 +147,7 @@ function periodKey(period: KLinePeriod): string {
 async function fetchKlineTencent(q: KlineQuery): Promise<KLineBar[]> {
   const count = Math.min(Math.max(q.count, 10), 800);
   const url = `https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=${q.symbol},${periodKey(q.period)},,,${count},qfq`;
-  const resp = await fetchWithTimeout(url);
+  const resp = await fetchWithTimeout(url, TX_HEADERS);
   if (!resp.ok) {
     throw new Error(`tencent kline http ${resp.status}`);
   }
@@ -177,7 +182,7 @@ async function fetchKlineTencent(q: KlineQuery): Promise<KLineBar[]> {
 
 async function fetchMinuteTencent(symbol: StockSymbol): Promise<{ points: MinutePoint[]; prevClose: number }> {
   const url = `https://web.ifzq.gtimg.cn/appstock/app/minute/query?code=${symbol}`;
-  const resp = await fetchWithTimeout(url);
+  const resp = await fetchWithTimeout(url, TX_HEADERS);
   if (!resp.ok) {
     throw new Error(`tencent minute http ${resp.status}`);
   }
@@ -232,6 +237,87 @@ async function fetchMinuteTencent(symbol: StockSymbol): Promise<{ points: Minute
   return { points, prevClose };
 }
 
+/** 新浪日K备源（scale=240；不复权，兜底展示可接受） */
+async function fetchKlineSinaDaily(symbol: StockSymbol, datalen: number): Promise<KLineBar[]> {
+  const url = `https://quotes.sina.cn/cn/api/jsonp_v2.php/var%20t=/CN_MarketDataService.getKLineData?symbol=${symbol}&scale=240&ma=no&datalen=${datalen}`;
+  const resp = await fetchWithTimeout(url, { 'User-Agent': BROWSER_UA, Referer: 'https://finance.sina.com.cn' });
+  if (!resp.ok) {
+    throw new Error(`sina kline http ${resp.status}`);
+  }
+  const text = await resp.text();
+  const start = text.indexOf('[');
+  const end = text.lastIndexOf(']');
+  if (start < 0 || end <= start) {
+    throw new Error('sina kline payload unexpected');
+  }
+  const arr = JSON.parse(text.slice(start, end + 1)) as Array<{
+    day: string; open: string; high: string; low: string; close: string; volume: string;
+  }>;
+  const bars: KLineBar[] = [];
+  for (const it of arr) {
+    const open = Number(it.open);
+    const close = Number(it.close);
+    const high = Number(it.high);
+    const low = Number(it.low);
+    const volume = Number(it.volume);
+    if (!it.day || ![open, close, high, low].every(Number.isFinite)) {
+      continue;
+    }
+    bars.push({ date: it.day, open, close, high, low, volume: Number.isFinite(volume) ? Math.round(volume / 100) : 0 });
+  }
+  if (bars.length === 0) {
+    throw new Error('sina kline empty');
+  }
+  return bars;
+}
+
+/** 日K聚合为周K/月K（按北京日期分组：开=首日开，收=末日收，高低取极值，量求和） */
+function aggregateBars(daily: KLineBar[], period: 'week' | 'month'): KLineBar[] {
+  const keyOf = (date: string): string => {
+    const [y, m, d] = date.split('-').map(Number);
+    if (period === 'month') {
+      return date.slice(0, 7);
+    }
+    const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // 0=周日
+    const offset = (dow + 6) % 7; // 距本周周一的天数
+    const monday = new Date(Date.UTC(y, m - 1, d - offset));
+    return monday.toISOString().slice(0, 10);
+  };
+  const out: KLineBar[] = [];
+  let curKey = '';
+  let cur: KLineBar | null = null;
+  for (const b of daily) {
+    const k = keyOf(b.date);
+    if (!cur || k !== curKey) {
+      if (cur) out.push(cur);
+      curKey = k;
+      cur = { ...b };
+    } else {
+      cur.high = Math.max(cur.high, b.high);
+      cur.low = Math.min(cur.low, b.low);
+      cur.close = b.close;
+      cur.volume += b.volume;
+    }
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+
+/** K线取数：腾讯主源失败 → 新浪日K兜底（周/月K由日K聚合） */
+async function fetchKlineWithFallback(q: KlineQuery): Promise<KLineBar[]> {
+  try {
+    return await fetchKlineTencent(q);
+  } catch (e) {
+    console.warn('[market] tencent kline failed, fallback sina:', (e as Error).message);
+    if (q.period === 'day') {
+      return await fetchKlineSinaDaily(q.symbol, Math.min(Math.max(q.count, 10), 800));
+    }
+    const need = q.period === 'week' ? Math.min(q.count * 5 + 10, 800) : Math.min(q.count * 26 + 60, 800);
+    const daily = await fetchKlineSinaDaily(q.symbol, need);
+    return aggregateBars(daily, q.period).slice(-q.count);
+  }
+}
+
 /** 默认数据源：主源失败自动切备源 */
 export const marketData: MarketDataSource = {
   async fetchQuotes(symbols) {
@@ -242,6 +328,6 @@ export const marketData: MarketDataSource = {
       return await fetchQuotesSina(symbols);
     }
   },
-  fetchKline: fetchKlineTencent,
+  fetchKline: fetchKlineWithFallback,
   fetchMinute: fetchMinuteTencent,
 };

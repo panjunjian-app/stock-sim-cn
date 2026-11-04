@@ -232,7 +232,7 @@ export default function MarketPage() {
             <MarketStatusBanner />
           </Box>
         </Box>
-        <Box sx={{ flex: 1, minHeight: 380, position: 'relative' }}>
+        <Box sx={{ height: 420, position: 'relative' }}>
           {chartLoading ? (
             <Typography sx={{ p: 4, textAlign: 'center', fontSize: 12, color: MUJI.ink3 }}>图表加载中…</Typography>
           ) : chartTab === 'minute' ? (
