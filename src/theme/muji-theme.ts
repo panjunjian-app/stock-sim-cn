@@ -4,21 +4,21 @@
  */
 import { createTheme, Theme } from '@mui/material/styles';
 
-/** MUJI 设计令牌（与 index.css :root 一一对应） */
+/** 炒炒乐设计令牌（OA 实用风：正常字重、高对比文字、橙色强调；与 index.css :root 一一对应） */
 export const MUJI = {
-  paper: '#f7f5f2',
-  paper2: '#eceae4',
-  card: '#fdfcfa',
-  ink: '#3e3a39',
-  ink2: '#6b6560',
-  ink3: '#8a8378',
-  line: '#d9d5cd',
-  lineSoft: '#e7e3db',
-  red: '#7f0019',
-  up: '#a03e35',
-  upBg: '#f5e9e7',
-  down: '#4f7d5c',
-  downBg: '#e9f0ea',
+  paper: '#f5f6f8',
+  paper2: '#eceef1',
+  card: '#ffffff',
+  ink: '#262626',
+  ink2: '#595959',
+  ink3: '#8c8c8c',
+  line: '#e8e8e8',
+  lineSoft: '#f0f1f3',
+  red: '#f08300',
+  up: '#d93025',
+  upBg: '#fdecea',
+  down: '#00a854',
+  downBg: '#e6f7ef',
 } as const;
 
 const FONT_FAMILY =
@@ -37,14 +37,14 @@ export const mujiTheme: Theme = createTheme({
   },
   typography: {
     fontFamily: FONT_FAMILY,
-    fontWeightLight: 200,
-    fontWeightRegular: 300,
-    fontWeightMedium: 300,
-    fontWeightBold: 400,
+    fontWeightLight: 400,
+    fontWeightRegular: 400,
+    fontWeightMedium: 500,
+    fontWeightBold: 600,
     button: {
       textTransform: 'none',
-      fontWeight: 300,
-      letterSpacing: '0.2em',
+      fontWeight: 500,
+      letterSpacing: '0.05em',
     },
   },
   shape: {
@@ -80,14 +80,14 @@ export const mujiTheme: Theme = createTheme({
         containedPrimary: {
           backgroundColor: MUJI.red,
           color: MUJI.card,
-          '&:hover': { backgroundColor: '#6a0015' },
+          '&:hover': { backgroundColor: '#d67300' },
         },
         outlined: {
           borderColor: MUJI.line,
           color: MUJI.ink2,
-          '&:hover': { borderColor: '#b9b2a5', backgroundColor: 'transparent' },
+          '&:hover': { borderColor: '#c7c9cd', backgroundColor: 'transparent' },
         },
-        sizeSmall: { fontSize: 12, letterSpacing: '0.1em', padding: '3px 10px' },
+        sizeSmall: { fontSize: 12, letterSpacing: '0.02em', padding: '3px 10px' },
       },
     },
     MuiOutlinedInput: {
@@ -96,15 +96,15 @@ export const mujiTheme: Theme = createTheme({
           borderRadius: 2,
           backgroundColor: MUJI.card,
           '& fieldset': { borderColor: MUJI.line },
-          '&:hover fieldset': { borderColor: '#b9b2a5' },
+          '&:hover fieldset': { borderColor: '#c7c9cd' },
           '&.Mui-focused fieldset': { borderColor: MUJI.red },
         },
-        input: { fontWeight: 300 },
+        input: { fontWeight: 400 },
       },
     },
     MuiInputLabel: {
       styleOverrides: {
-        root: { fontWeight: 300, letterSpacing: '0.1em' },
+        root: { fontWeight: 400, letterSpacing: '0.02em' },
       },
     },
     MuiDialog: {
@@ -122,14 +122,14 @@ export const mujiTheme: Theme = createTheme({
         head: {
           backgroundColor: MUJI.paper2,
           color: MUJI.ink3,
-          fontWeight: 300,
+          fontWeight: 400,
           fontSize: 12,
-          letterSpacing: '0.1em',
+          letterSpacing: '0.02em',
           whiteSpace: 'nowrap',
         },
         root: {
           fontSize: 13,
-          fontWeight: 300,
+          fontWeight: 400,
           borderBottom: `1px solid ${MUJI.lineSoft}`,
           whiteSpace: 'nowrap',
         },
@@ -143,8 +143,8 @@ export const mujiTheme: Theme = createTheme({
     MuiTab: {
       styleOverrides: {
         root: {
-          fontWeight: 300,
-          letterSpacing: '0.15em',
+          fontWeight: 400,
+          letterSpacing: '0.05em',
           minHeight: 42,
           fontSize: 14,
           color: MUJI.ink2,
@@ -154,17 +154,17 @@ export const mujiTheme: Theme = createTheme({
     },
     MuiTooltip: {
       styleOverrides: {
-        tooltip: { backgroundColor: MUJI.ink, fontSize: 12, fontWeight: 300 },
+        tooltip: { backgroundColor: MUJI.ink, fontSize: 12, fontWeight: 400 },
       },
     },
     MuiAlert: {
       styleOverrides: {
-        root: { borderRadius: 2, fontWeight: 300 },
+        root: { borderRadius: 2, fontWeight: 400 },
       },
     },
     MuiChip: {
       styleOverrides: {
-        root: { borderRadius: 2, fontWeight: 300 },
+        root: { borderRadius: 2, fontWeight: 400 },
       },
     },
   },

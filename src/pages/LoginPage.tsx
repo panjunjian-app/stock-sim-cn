@@ -40,11 +40,11 @@ export default function LoginPage() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          borderBottom: `1px solid ${MUJI.line}`,
-          color: MUJI.ink,
-          fontSize: 11,
-          fontWeight: 300,
-          letterSpacing: '0.25em',
+          bgcolor: MUJI.red,
+          color: '#ffffff',
+          fontSize: 11.5,
+          fontWeight: 500,
+          letterSpacing: '0.05em',
         }}
       >
         {BANNER}
@@ -63,19 +63,19 @@ export default function LoginPage() {
               justifyContent: 'center',
               color: MUJI.card,
               fontSize: 26,
-              fontWeight: 200,
+              fontWeight: 500,
             }}
           >
             炒
           </Box>
-          <Typography sx={{ fontSize: 22, fontWeight: 200, textAlign: 'center', mt: 3, letterSpacing: '0.5em', textIndent: '0.5em' }}>
+          <Typography sx={{ fontSize: 22, fontWeight: 500, textAlign: 'center', mt: 3, letterSpacing: '0.1em', textIndent: '0.1em' }}>
             炒炒乐
           </Typography>
-          <Typography sx={{ fontSize: 12, color: MUJI.ink3, textAlign: 'center', mt: 1.25, letterSpacing: '0.25em' }}>
+          <Typography sx={{ fontSize: 12, color: MUJI.ink3, textAlign: 'center', mt: 1.25, letterSpacing: '0.05em' }}>
             A股模拟盘 · 零成本学炒股
           </Typography>
 
-          <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.15em', mt: 3.5, mb: 1 }}>邮箱</Typography>
+          <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.05em', mt: 3.5, mb: 1 }}>邮箱</Typography>
           <TextField
             fullWidth
             size="small"
@@ -85,7 +85,7 @@ export default function LoginPage() {
             onChange={(e) => setEmail(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && void submit()}
           />
-          <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.15em', mt: 2, mb: 1 }}>密码</Typography>
+          <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.05em', mt: 2, mb: 1 }}>密码</Typography>
           <TextField
             fullWidth
             size="small"
@@ -126,8 +126,8 @@ export default function LoginPage() {
             right: 0,
             textAlign: 'center',
             fontSize: 10.5,
-            color: '#b5ac9e',
-            letterSpacing: '0.2em',
+            color: '#595959',
+            letterSpacing: '0.05em',
           }}
         >
           模拟盘所有数据均为虚构 · 投资有风险，入市需谨慎

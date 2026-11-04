@@ -32,7 +32,7 @@ export default function StockSearch({ value, onChange }: StockSearchProps) {
 
   return (
     <Box>
-      <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.15em', mb: 1 }}>搜索股票</Typography>
+      <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.05em', mb: 1 }}>搜索股票</Typography>
       <TextField
         select
         fullWidth
@@ -40,13 +40,13 @@ export default function StockSearch({ value, onChange }: StockSearchProps) {
         value={value}
         onChange={(e) => onChange(e.target.value as StockSymbol)}
         sx={{
-          '& .MuiInputBase-root': { bgcolor: MUJI.card, fontWeight: 300, fontSize: 14 },
+          '& .MuiInputBase-root': { bgcolor: MUJI.card, fontWeight: 400, fontSize: 14 },
           '& .MuiSelect-select': { display: 'flex', alignItems: 'center' },
         }}
         SelectProps={{ displayEmpty: true }}
       >
         {filtered.map((s) => (
-          <MenuItem key={s.symbol} value={s.symbol} sx={{ fontWeight: 300, fontSize: 13 }}>
+          <MenuItem key={s.symbol} value={s.symbol} sx={{ fontWeight: 400, fontSize: 13 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
               <span>{s.name}</span>
               <Box component="span" sx={{ color: MUJI.ink3, fontSize: 11, ml: 2 }} className="num">
@@ -75,7 +75,7 @@ export default function StockSearch({ value, onChange }: StockSearchProps) {
               </InputAdornment>
             ),
           }}
-          sx={{ '& .MuiInputBase-input': { fontSize: 12.5, fontWeight: 300 } }}
+          sx={{ '& .MuiInputBase-input': { fontSize: 12.5, fontWeight: 400 } }}
         />
       </Box>
     </Box>

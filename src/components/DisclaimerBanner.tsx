@@ -11,8 +11,8 @@ export default function DisclaimerBanner() {
         py: 1.5,
         textAlign: 'center',
         fontSize: 10.5,
-        color: '#b5ac9e',
-        letterSpacing: '0.2em',
+        color: '#595959',
+        letterSpacing: '0.05em',
         bgcolor: MUJI.paper,
         borderTop: `1px solid ${MUJI.lineSoft}`,
       }}

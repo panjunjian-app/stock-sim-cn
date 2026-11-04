@@ -119,7 +119,7 @@ export default function OrderPanel({ symbol, quote, position, cashAvailable, onS
   };
 
   const inputSx = {
-    '& .MuiInputBase-root': { bgcolor: MUJI.card, fontSize: 14, fontWeight: 300, height: 40 },
+    '& .MuiInputBase-root': { bgcolor: MUJI.card, fontSize: 14, fontWeight: 400, height: 40 },
   } as const;
 
   return (
@@ -137,8 +137,8 @@ export default function OrderPanel({ symbol, quote, position, cashAvailable, onS
                 flex: 1,
                 textAlign: 'center',
                 fontSize: 14,
-                fontWeight: 300,
-                letterSpacing: '0.3em',
+                fontWeight: 400,
+                letterSpacing: '0.08em',
                 py: 1.25,
                 cursor: 'pointer',
                 color: active ? c : MUJI.ink3,
@@ -152,7 +152,7 @@ export default function OrderPanel({ symbol, quote, position, cashAvailable, onS
         })}
       </Box>
 
-      <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.15em', mt: 2.5, mb: 1 }}>委托类型</Typography>
+      <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.05em', mt: 2.5, mb: 1 }}>委托类型</Typography>
       <TextField
         select
         fullWidth
@@ -169,7 +169,7 @@ export default function OrderPanel({ symbol, quote, position, cashAvailable, onS
 
       {orderType === 'limit' && (
         <>
-          <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.15em', mt: 2.5, mb: 1 }}>委托价格（元）</Typography>
+          <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.05em', mt: 2.5, mb: 1 }}>委托价格（元）</Typography>
           <TextField
             fullWidth
             placeholder={lastPriceYuan || '0.00'}
@@ -183,15 +183,15 @@ export default function OrderPanel({ symbol, quote, position, cashAvailable, onS
       {limits && (
         <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: MUJI.ink3, mt: 1.75 }} className="num">
           <span>
-            涨停价 <b style={{ color: MUJI.up, fontWeight: 300 }}>{formatYuan(limits.limitUp)}</b>
+            涨停价 <b style={{ color: MUJI.up, fontWeight: 400 }}>{formatYuan(limits.limitUp)}</b>
           </span>
           <span>
-            跌停价 <b style={{ color: MUJI.down, fontWeight: 300 }}>{formatYuan(limits.limitDown)}</b>
+            跌停价 <b style={{ color: MUJI.down, fontWeight: 400 }}>{formatYuan(limits.limitDown)}</b>
           </span>
         </Box>
       )}
 
-      <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.15em', mt: 2.5, mb: 1 }}>委托数量（股）</Typography>
+      <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.05em', mt: 2.5, mb: 1 }}>委托数量（股）</Typography>
       <TextField
         fullWidth
         placeholder="100 的整数倍"
@@ -204,16 +204,16 @@ export default function OrderPanel({ symbol, quote, position, cashAvailable, onS
 
       <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: MUJI.ink3, mt: 1.75 }} className="num">
         <span>{isBuy ? '可买上限' : '可卖数量'}</span>
-        <b style={{ color: MUJI.ink, fontWeight: 300 }}>{isBuy ? `${maxBuyLots} 股` : `${sellable} 股`}</b>
+        <b style={{ color: MUJI.ink, fontWeight: 400 }}>{isBuy ? `${maxBuyLots} 股` : `${sellable} 股`}</b>
       </Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: MUJI.ink3, mt: 1 }} className="num">
         <span>可用资金</span>
-        <b style={{ color: MUJI.ink, fontWeight: 300 }}>{formatYuanSymbol(cashAvailable)}</b>
+        <b style={{ color: MUJI.ink, fontWeight: 400 }}>{formatYuanSymbol(cashAvailable)}</b>
       </Box>
 
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mt: 2.75, pt: 2, borderTop: `1px solid ${MUJI.lineSoft}` }}>
-        <span style={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.15em' }}>预估金额</span>
-        <span className="num" style={{ fontSize: 20, fontWeight: 200 }}>
+        <span style={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.05em' }}>预估金额</span>
+        <span className="num" style={{ fontSize: 20, fontWeight: 500 }}>
           {estAmount > 0 ? formatYuanSymbol(estAmount) : '—'}
         </span>
       </Box>

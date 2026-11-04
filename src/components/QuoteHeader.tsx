@@ -13,7 +13,7 @@ export default function QuoteHeader({ quote }: QuoteHeaderProps) {
   if (!quote) {
     return (
       <Box sx={{ py: 2 }}>
-        <Typography sx={{ fontSize: 19, fontWeight: 300, letterSpacing: '0.15em' }}>—</Typography>
+        <Typography sx={{ fontSize: 19, fontWeight: 400, letterSpacing: '0.05em' }}>—</Typography>
         <Typography sx={{ fontSize: 12, color: MUJI.ink3, mt: 1, letterSpacing: '0.1em' }}>
           等待行情数据…（上游不可用时将保留最后快照）
         </Typography>
@@ -26,7 +26,7 @@ export default function QuoteHeader({ quote }: QuoteHeaderProps) {
     <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 3, flexWrap: 'wrap', position: 'relative' }}>
       <Box>
         <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.5 }}>
-          <Typography sx={{ fontSize: 19, fontWeight: 300, letterSpacing: '0.15em' }}>{quote.name}</Typography>
+          <Typography sx={{ fontSize: 19, fontWeight: 400, letterSpacing: '0.05em' }}>{quote.name}</Typography>
           <Typography sx={{ fontSize: 11, color: MUJI.ink3, letterSpacing: '0.1em' }} className="num">
             {quote.symbol.replace(/^(sh|sz)/, '')}
           </Typography>
@@ -44,13 +44,13 @@ export default function QuoteHeader({ quote }: QuoteHeaderProps) {
           </Box>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 2, mt: 1.5 }}>
-          <Typography className="num" sx={{ fontSize: 36, fontWeight: 200, color }}>
+          <Typography className="num" sx={{ fontSize: 36, fontWeight: 500, color }}>
             {formatYuanSymbol(quote.price)}
           </Typography>
-          <Typography className="num" sx={{ fontSize: 14, fontWeight: 300, color }}>
+          <Typography className="num" sx={{ fontSize: 14, fontWeight: 400, color }}>
             {formatSignedYuan(chg)}
           </Typography>
-          <Typography className="num" sx={{ fontSize: 14, fontWeight: 300, color }}>
+          <Typography className="num" sx={{ fontSize: 14, fontWeight: 400, color }}>
             {formatPct(quote.changePct)}
           </Typography>
         </Box>
@@ -66,20 +66,20 @@ export default function QuoteHeader({ quote }: QuoteHeaderProps) {
         ).map(([label, val, dir]) => (
           <Box key={label}>
             <Typography sx={{ fontSize: 10.5, color: MUJI.ink3, letterSpacing: '0.1em' }}>{label}</Typography>
-            <Typography className="num" sx={{ fontSize: 12.5, fontWeight: 300, color: dir === 0 ? MUJI.ink2 : pnlColor(dir) }}>
+            <Typography className="num" sx={{ fontSize: 12.5, fontWeight: 400, color: dir === 0 ? MUJI.ink2 : pnlColor(dir) }}>
               {formatYuan(val)}
             </Typography>
           </Box>
         ))}
         <Box>
           <Typography sx={{ fontSize: 10.5, color: MUJI.ink3, letterSpacing: '0.1em' }}>成交量</Typography>
-          <Typography className="num" sx={{ fontSize: 12.5, fontWeight: 300 }}>
+          <Typography className="num" sx={{ fontSize: 12.5, fontWeight: 400 }}>
             {Math.round(quote.volume).toLocaleString('en-US')}手
           </Typography>
         </Box>
         <Box>
           <Typography sx={{ fontSize: 10.5, color: MUJI.ink3, letterSpacing: '0.1em' }}>成交额</Typography>
-          <Typography className="num" sx={{ fontSize: 12.5, fontWeight: 300 }}>
+          <Typography className="num" sx={{ fontSize: 12.5, fontWeight: 400 }}>
             {formatAmountShort(quote.amount)}
           </Typography>
         </Box>

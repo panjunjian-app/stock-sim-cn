@@ -24,7 +24,7 @@ export function pnlColor(value: number, colorFlat = false): string {
 /** PnlText — A股语义「红涨绿跌」文本组件 */
 export default function PnlText({ value, text, colorFlat }: PnlTextProps) {
   return (
-    <Box component="span" className="num" sx={{ color: pnlColor(value, colorFlat), fontWeight: 300 }}>
+    <Box component="span" className="num" sx={{ color: pnlColor(value, colorFlat), fontWeight: 400 }}>
       {text}
     </Box>
   );

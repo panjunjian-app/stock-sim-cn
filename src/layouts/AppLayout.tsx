@@ -45,11 +45,11 @@ export default function AppLayout({ children }: PropsWithChildren) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          borderBottom: `1px solid ${MUJI.line}`,
-          color: MUJI.ink,
-          fontSize: 11,
-          fontWeight: 300,
-          letterSpacing: '0.25em',
+          bgcolor: MUJI.red,
+          color: '#ffffff',
+          fontSize: 11.5,
+          fontWeight: 500,
+          letterSpacing: '0.05em',
         }}
       >
         {SIM_BANNER}
@@ -83,15 +83,15 @@ export default function AppLayout({ children }: PropsWithChildren) {
           >
             炒
           </Box>
-          <Typography sx={{ fontSize: 15, fontWeight: 300, letterSpacing: '0.25em', color: MUJI.ink, cursor: 'pointer' }}>
+          <Typography sx={{ fontSize: 15, fontWeight: 400, letterSpacing: '0.05em', color: MUJI.ink, cursor: 'pointer' }}>
             炒炒乐
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 1, flex: 1 }}>
-          <Button disableRipple onClick={() => navigate('/accounts')} sx={{ ...activeTabStyle(isAccounts), px: 1.75, py: 1, fontSize: 13.5, fontWeight: 300, letterSpacing: '0.1em' }}>
+          <Button disableRipple onClick={() => navigate('/accounts')} sx={{ ...activeTabStyle(isAccounts), px: 1.75, py: 1, fontSize: 13.5, fontWeight: 400, letterSpacing: '0.1em' }}>
             我的账户
           </Button>
-          <Button disableRipple onClick={() => navigate('/market')} sx={{ ...activeTabStyle(isMarket), px: 1.75, py: 1, fontSize: 13.5, fontWeight: 300, letterSpacing: '0.1em' }}>
+          <Button disableRipple onClick={() => navigate('/market')} sx={{ ...activeTabStyle(isMarket), px: 1.75, py: 1, fontSize: 13.5, fontWeight: 400, letterSpacing: '0.1em' }}>
             行情
           </Button>
         </Box>

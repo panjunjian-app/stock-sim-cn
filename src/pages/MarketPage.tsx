@@ -146,7 +146,7 @@ export default function MarketPage() {
         <Box sx={{ px: 3.5, pt: 2.5, pb: 2 }}>
           <StockSearch value={symbol} onChange={selectSymbol} />
         </Box>
-        <Box sx={{ px: 2, pb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, fontWeight: 300, letterSpacing: '0.15em' }}>
+        <Box sx={{ px: 2, pb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, fontWeight: 400, letterSpacing: '0.05em' }}>
           <span>自选股（{STOCKS.length}）</span>
         </Box>
         {STOCKS.map((s) => {
@@ -171,13 +171,13 @@ export default function MarketPage() {
               }}
             >
               <Box sx={{ flex: 1 }}>
-                <Typography sx={{ fontSize: 12.5, fontWeight: 300, letterSpacing: '0.1em' }}>{s.name}</Typography>
+                <Typography sx={{ fontSize: 12.5, fontWeight: 400, letterSpacing: '0.1em' }}>{s.name}</Typography>
                 <Typography className="num" sx={{ fontSize: 9.5, color: MUJI.ink3 }}>
                   {s.symbol.replace(/^(sh|sz)/, '')}
                 </Typography>
               </Box>
               <Box sx={{ textAlign: 'right', mr: 1.5 }}>
-                <Typography className="num" sx={{ fontSize: 12.5, fontWeight: 300, color: q ? (chg >= 0 ? MUJI.up : MUJI.down) : MUJI.ink3 }}>
+                <Typography className="num" sx={{ fontSize: 12.5, fontWeight: 400, color: q ? (chg >= 0 ? MUJI.up : MUJI.down) : MUJI.ink3 }}>
                   {q ? (q.price / 100).toFixed(2) : '—'}
                 </Typography>
                 <Typography className="num" sx={{ fontSize: 9.5, color: q ? (chg >= 0 ? MUJI.up : MUJI.down) : MUJI.ink3 }}>
@@ -190,7 +190,7 @@ export default function MarketPage() {
                   minWidth: 52,
                   textAlign: 'center',
                   fontSize: 11.5,
-                  fontWeight: 300,
+                  fontWeight: 400,
                   py: 0.6,
                   borderRadius: '2px',
                   bgcolor: q ? (chg > 0 ? MUJI.upBg : chg < 0 ? MUJI.downBg : 'transparent') : 'transparent',
@@ -216,7 +216,7 @@ export default function MarketPage() {
                 onClick={() => setChartTab(t.key)}
                 sx={{
                   fontSize: 12.5,
-                  letterSpacing: '0.15em',
+                  letterSpacing: '0.05em',
                   py: 1,
                   cursor: 'pointer',
                   color: active ? MUJI.ink : MUJI.ink3,

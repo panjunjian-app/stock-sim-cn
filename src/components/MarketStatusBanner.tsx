@@ -21,7 +21,7 @@ export default function MarketStatusBanner() {
           gap: 1,
           fontSize: 11.5,
           color: MUJI.down,
-          letterSpacing: '0.15em',
+          letterSpacing: '0.05em',
         }}
       >
         <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: MUJI.down }} />
@@ -37,7 +37,7 @@ export default function MarketStatusBanner() {
         gap: 1,
         fontSize: 11.5,
         color: MUJI.ink3,
-        letterSpacing: '0.15em',
+        letterSpacing: '0.05em',
       }}
     >
       <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: '#c9c2b6' }} />

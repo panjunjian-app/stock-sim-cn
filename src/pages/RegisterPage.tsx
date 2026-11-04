@@ -121,18 +121,19 @@ export default function RegisterPage() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          borderBottom: `1px solid ${MUJI.line}`,
-          color: MUJI.ink,
-          fontSize: 11,
-          letterSpacing: '0.25em',
+          bgcolor: MUJI.red,
+          color: '#ffffff',
+          fontSize: 11.5,
+          fontWeight: 500,
+          letterSpacing: '0.05em',
         }}
       >
         ⚠️ 模拟盘 · 虚拟资金 · 与真实财产无关 · 仅供学习娱乐
       </Box>
       <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Box sx={{ width: 490, bgcolor: MUJI.card, border: `1px solid ${MUJI.line}`, borderRadius: '2px', p: '42px 48px 34px' }}>
-          <Typography sx={{ fontSize: 19, fontWeight: 200, letterSpacing: '0.4em' }}>创建账号</Typography>
-          <Typography sx={{ fontSize: 12, color: MUJI.ink3, mt: 1, letterSpacing: '0.15em' }}>
+          <Typography sx={{ fontSize: 19, fontWeight: 500, letterSpacing: '0.1em' }}>创建账号</Typography>
+          <Typography sx={{ fontSize: 12, color: MUJI.ink3, mt: 1, letterSpacing: '0.05em' }}>
             注册后即送模拟资金，一分钟开启练习之旅
           </Typography>
 
@@ -150,7 +151,7 @@ export default function RegisterPage() {
                       alignItems: 'center',
                       justifyContent: 'center',
                       fontSize: 13,
-                      fontWeight: 300,
+                      fontWeight: 400,
                       bgcolor: stepState(i) === 'done' ? MUJI.ink : MUJI.card,
                       border: `1px solid ${stepState(i) === 'cur' ? MUJI.red : stepState(i) === 'done' ? MUJI.ink : MUJI.line}`,
                       color: stepState(i) === 'done' ? MUJI.card : stepState(i) === 'cur' ? MUJI.red : MUJI.ink3,
@@ -162,7 +163,7 @@ export default function RegisterPage() {
                     sx={{
                       fontSize: 11.5,
                       whiteSpace: 'nowrap',
-                      letterSpacing: '0.15em',
+                      letterSpacing: '0.05em',
                       color: stepState(i) === 'cur' ? MUJI.red : stepState(i) === 'done' ? MUJI.ink2 : MUJI.ink3,
                     }}
                   >
@@ -178,7 +179,7 @@ export default function RegisterPage() {
 
           {step === 0 && (
             <>
-              <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.15em', mb: 1 }}>邮箱</Typography>
+              <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.05em', mb: 1 }}>邮箱</Typography>
               <TextField fullWidth size="small" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
               <Button
                 fullWidth
@@ -194,7 +195,7 @@ export default function RegisterPage() {
 
           {step === 1 && (
             <>
-              <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.15em', mb: 1 }}>
+              <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.05em', mb: 1 }}>
                 验证码（发送至 {email}）
               </Typography>
               <Box sx={{ display: 'flex', gap: 1.5 }}>
@@ -228,10 +229,10 @@ export default function RegisterPage() {
 
           {step === 2 && (
             <>
-              <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.15em', mb: 1 }}>设置密码</Typography>
+              <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.05em', mb: 1 }}>设置密码</Typography>
               <TextField fullWidth size="small" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
               <StrengthBar pw={password} />
-              <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.15em', mt: 2.5, mb: 1 }}>确认密码</Typography>
+              <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.05em', mt: 2.5, mb: 1 }}>确认密码</Typography>
               <TextField fullWidth size="small" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
               {confirm.length > 0 && (
                 <Typography sx={{ fontSize: 11.5, color: confirm === password ? MUJI.down : MUJI.up, mt: 0.75 }}>
@@ -239,7 +240,7 @@ export default function RegisterPage() {
                 </Typography>
               )}
               <Box sx={{ bgcolor: MUJI.paper2, borderRadius: '2px', p: 2, mt: 2 }}>
-                <Typography sx={{ fontSize: 11, color: MUJI.ink3, mb: 1, letterSpacing: '0.15em' }}>密码规则（实时校验）</Typography>
+                <Typography sx={{ fontSize: 11, color: MUJI.ink3, mb: 1, letterSpacing: '0.05em' }}>密码规则（实时校验）</Typography>
                 <Box sx={{ fontSize: 12.5, color: MUJI.ink2, lineHeight: 2.1 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <RuleDot ok={rules.upper} /> 需包含大写字母（A-Z）

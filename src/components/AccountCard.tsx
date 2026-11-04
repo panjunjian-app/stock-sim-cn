@@ -43,7 +43,7 @@ export default function AccountCard({ account, quotes, onDelete }: AccountCardPr
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Typography sx={{ fontSize: 14, fontWeight: 300, letterSpacing: '0.15em' }}>{account.name}</Typography>
+        <Typography sx={{ fontSize: 14, fontWeight: 400, letterSpacing: '0.05em' }}>{account.name}</Typography>
         <Box
           sx={{
             fontSize: 10,
@@ -58,7 +58,7 @@ export default function AccountCard({ account, quotes, onDelete }: AccountCardPr
           No.{account.id}
         </Box>
       </Box>
-      <Typography className="num" sx={{ fontSize: 23, fontWeight: 200, mt: 2, mb: 0.75 }}>
+      <Typography className="num" sx={{ fontSize: 23, fontWeight: 500, mt: 2, mb: 0.75 }}>
         {formatYuanSymbol(totalAsset)}
       </Typography>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: MUJI.ink3, mt: 1.25, letterSpacing: '0.1em' }}>

@@ -4,19 +4,19 @@
 
 /* MUJI 设计令牌：唯一色值来源（MUI 主题与 Tailwind 配置均引用这些 CSS 变量） */
 :root {
-  --muji-paper: #f7f5f2; /* 页面底 */
-  --muji-paper2: #eceae4; /* 次级底 */
-  --muji-card: #fdfcfa; /* 卡片底 */
-  --muji-ink: #3e3a39; /* 深棕黑文本 */
-  --muji-ink2: #6b6560; /* 次级文本 */
-  --muji-ink3: #8a8378; /* 弱文本 */
-  --muji-line: #d9d5cd; /* 细边框 */
-  --muji-line-soft: #e7e3db; /* 更浅分隔 */
-  --muji-red: #7f0019; /* MUJI 深红（品牌强调） */
-  --muji-up: #a03e35; /* 涨（柔和红，A股语义：涨红） */
-  --muji-up-bg: #f5e9e7;
-  --muji-down: #4f7d5c; /* 跌（柔和绿，A股语义：跌绿） */
-  --muji-down-bg: #e9f0ea;
+  --muji-paper: #f5f6f8; /* 页面底 */
+  --muji-paper2: #eceef1; /* 次级底 */
+  --muji-card: #ffffff; /* 卡片底 */
+  --muji-ink: #262626; /* 深棕黑文本 */
+  --muji-ink2: #595959; /* 次级文本 */
+  --muji-ink3: #8c8c8c; /* 弱文本 */
+  --muji-line: #e8e8e8; /* 细边框 */
+  --muji-line-soft: #f0f1f3; /* 更浅分隔 */
+  --muji-red: #f08300; /* MUJI 深红（品牌强调） */
+  --muji-up: #d93025; /* 涨（柔和红，A股语义：涨红） */
+  --muji-up-bg: #fdecea;
+  --muji-down: #00a854; /* 跌（柔和绿，A股语义：跌绿） */
+  --muji-down-bg: #e6f7ef;
 }
 
 html,
@@ -28,8 +28,8 @@ body,
 body {
   font-family: 'Helvetica Neue', Helvetica, Arial, -apple-system, BlinkMacSystemFont,
     'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-  font-weight: 300;
-  letter-spacing: 0.02em;
+  font-weight: 400;
+  letter-spacing: normal;
   -webkit-font-smoothing: antialiased;
   background: var(--muji-paper);
   color: var(--muji-ink);

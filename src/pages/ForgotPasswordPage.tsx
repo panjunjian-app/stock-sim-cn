@@ -67,7 +67,7 @@ export default function ForgotPasswordPage() {
       <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: MUJI.paper }}>
         <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Box sx={{ width: 430, bgcolor: MUJI.card, border: `1px solid ${MUJI.line}`, borderRadius: '2px', p: '48px', textAlign: 'center' }}>
-            <Typography sx={{ fontSize: 19, fontWeight: 200, letterSpacing: '0.4em' }}>重置成功</Typography>
+            <Typography sx={{ fontSize: 19, fontWeight: 500, letterSpacing: '0.1em' }}>重置成功</Typography>
             <Typography sx={{ fontSize: 12.5, color: MUJI.ink2, mt: 2 }}>
               密码已更新，原登录状态已全部失效，请使用新密码重新登录。
             </Typography>
@@ -89,26 +89,27 @@ export default function ForgotPasswordPage() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          borderBottom: `1px solid ${MUJI.line}`,
-          color: MUJI.ink,
-          fontSize: 11,
-          letterSpacing: '0.25em',
+          bgcolor: MUJI.red,
+          color: '#ffffff',
+          fontSize: 11.5,
+          fontWeight: 500,
+          letterSpacing: '0.05em',
         }}
       >
         ⚠️ 模拟盘 · 虚拟资金 · 与真实财产无关 · 仅供学习娱乐
       </Box>
       <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Box sx={{ width: 430, bgcolor: MUJI.card, border: `1px solid ${MUJI.line}`, borderRadius: '2px', p: '44px 48px 36px' }}>
-          <Typography sx={{ fontSize: 19, fontWeight: 200, letterSpacing: '0.4em', textAlign: 'center' }}>忘记密码</Typography>
+          <Typography sx={{ fontSize: 19, fontWeight: 500, letterSpacing: '0.1em', textAlign: 'center' }}>忘记密码</Typography>
           <Typography sx={{ fontSize: 12, color: MUJI.ink3, textAlign: 'center', mt: 1.25, letterSpacing: '0.1em' }}>
             通过邮箱验证码重置密码
           </Typography>
 
           {step === 0 && (
             <>
-              <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.15em', mt: 3.5, mb: 1 }}>邮箱</Typography>
+              <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.05em', mt: 3.5, mb: 1 }}>邮箱</Typography>
               <TextField fullWidth size="small" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-              <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.15em', mt: 2, mb: 1 }}>验证码</Typography>
+              <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.05em', mt: 2, mb: 1 }}>验证码</Typography>
               <Box sx={{ display: 'flex', gap: 1.5 }}>
                 <TextField
                   fullWidth
@@ -137,12 +138,12 @@ export default function ForgotPasswordPage() {
 
           {step === 1 && (
             <>
-              <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.15em', mt: 3.5, mb: 1 }}>新密码</Typography>
+              <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.05em', mt: 3.5, mb: 1 }}>新密码</Typography>
               <TextField fullWidth size="small" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
               <Typography sx={{ fontSize: 11, color: MUJI.ink3, mt: 0.75 }}>
                 8~64 位，含大写 + 小写 + 数字 + 标点（强度：{['弱', '中', '强'][Math.max(passwordStrength(newPassword) - 1, 0)] ?? '—'}）
               </Typography>
-              <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.15em', mt: 2, mb: 1 }}>确认新密码</Typography>
+              <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.05em', mt: 2, mb: 1 }}>确认新密码</Typography>
               <TextField fullWidth size="small" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
               <Button
                 fullWidth

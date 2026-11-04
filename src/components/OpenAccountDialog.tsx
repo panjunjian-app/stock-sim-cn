@@ -74,7 +74,7 @@ export default function OpenAccountDialog({ open, currentCount, maxCount, onClos
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth={false} PaperProps={{ sx: { width: 460, bgcolor: MUJI.card } }}>
-      <DialogTitle sx={{ fontWeight: 300, letterSpacing: '0.25em', fontSize: 16, pb: 1 }}>
+      <DialogTitle sx={{ fontWeight: 400, letterSpacing: '0.05em', fontSize: 16, pb: 1 }}>
         开立新交易账户
         <Typography component="span" sx={{ fontSize: 11, color: MUJI.ink3, ml: 1.5, letterSpacing: '0.1em' }}>
           {currentCount}/{maxCount} 个
@@ -84,7 +84,7 @@ export default function OpenAccountDialog({ open, currentCount, maxCount, onClos
         <Typography sx={{ fontSize: 12, color: MUJI.ink2, mt: 1, mb: 2, letterSpacing: '0.05em' }}>
           纯模拟账户，注入虚拟人民币资金，与真实财产无关
         </Typography>
-        <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.15em', mb: 1 }}>账户名称</Typography>
+        <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.05em', mb: 1 }}>账户名称</Typography>
         <TextField
           fullWidth
           size="small"
@@ -95,7 +95,7 @@ export default function OpenAccountDialog({ open, currentCount, maxCount, onClos
         <Typography sx={{ fontSize: 11, color: MUJI.ink3, mt: 0.75 }}>
           用于区分不同的练习策略，可随时修改
         </Typography>
-        <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.15em', mt: 2.5, mb: 1 }}>
+        <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.05em', mt: 2.5, mb: 1 }}>
           初始资金（元）
         </Typography>
         <TextField

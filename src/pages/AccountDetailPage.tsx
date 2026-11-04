@@ -115,39 +115,39 @@ export default function AccountDetailPage() {
   return (
     <Box sx={{ flex: 1, px: 6.5, pt: 3, overflowY: 'auto' }}>
       <Typography sx={{ fontSize: 12, color: MUJI.ink3, mb: 2, letterSpacing: '0.1em' }}>
-        我的账户 / <b style={{ fontWeight: 300, color: MUJI.ink }}>{overview.name}</b>（账户 No.{overview.accountId}）
+        我的账户 / <b style={{ fontWeight: 400, color: MUJI.ink }}>{overview.name}</b>（账户 No.{overview.accountId}）
       </Typography>
 
       {/* 资产总览条 */}
       <Box sx={{ bgcolor: MUJI.card, border: `1px solid ${MUJI.line}`, borderRadius: '2px', p: '26px 30px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 3 }}>
         <Box>
-          <Typography sx={{ fontSize: 11, color: MUJI.ink3, letterSpacing: '0.15em' }}>总资产（元）</Typography>
-          <Typography className="num" sx={{ fontSize: 31, fontWeight: 200, mt: 1 }}>
+          <Typography sx={{ fontSize: 11, color: MUJI.ink3, letterSpacing: '0.05em' }}>总资产（元）</Typography>
+          <Typography className="num" sx={{ fontSize: 31, fontWeight: 500, mt: 1 }}>
             {formatYuanSymbol(overview.totalAsset)}
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 5.5, pl: 5.5, borderLeft: `1px solid ${MUJI.lineSoft}`, flex: 1, flexWrap: 'wrap' }}>
           <Box>
-            <Typography sx={{ fontSize: 11, color: MUJI.ink3, letterSpacing: '0.15em' }}>可用资金</Typography>
-            <Typography className="num" sx={{ fontSize: 17, fontWeight: 300, mt: 1.1 }}>
+            <Typography sx={{ fontSize: 11, color: MUJI.ink3, letterSpacing: '0.05em' }}>可用资金</Typography>
+            <Typography className="num" sx={{ fontSize: 17, fontWeight: 400, mt: 1.1 }}>
               {formatYuanSymbol(overview.cashAvailable)}
             </Typography>
           </Box>
           <Box>
-            <Typography sx={{ fontSize: 11, color: MUJI.ink3, letterSpacing: '0.15em' }}>持仓市值</Typography>
-            <Typography className="num" sx={{ fontSize: 17, fontWeight: 300, mt: 1.1 }}>
+            <Typography sx={{ fontSize: 11, color: MUJI.ink3, letterSpacing: '0.05em' }}>持仓市值</Typography>
+            <Typography className="num" sx={{ fontSize: 17, fontWeight: 400, mt: 1.1 }}>
               {formatYuanSymbol(overview.marketValue)}
             </Typography>
           </Box>
           <Box>
-            <Typography sx={{ fontSize: 11, color: MUJI.ink3, letterSpacing: '0.15em' }}>在途冻结</Typography>
-            <Typography className="num" sx={{ fontSize: 17, fontWeight: 300, mt: 1.1 }}>
+            <Typography sx={{ fontSize: 11, color: MUJI.ink3, letterSpacing: '0.05em' }}>在途冻结</Typography>
+            <Typography className="num" sx={{ fontSize: 17, fontWeight: 400, mt: 1.1 }}>
               {formatYuanSymbol(overview.frozenCash)}
             </Typography>
           </Box>
           <Box>
-            <Typography sx={{ fontSize: 11, color: MUJI.ink3, letterSpacing: '0.15em' }}>当日盈亏</Typography>
-            <Typography className="num" sx={{ fontSize: 17, fontWeight: 300, mt: 1.1, color: pnlColor(overview.dayPnl) }}>
+            <Typography sx={{ fontSize: 11, color: MUJI.ink3, letterSpacing: '0.05em' }}>当日盈亏</Typography>
+            <Typography className="num" sx={{ fontSize: 17, fontWeight: 400, mt: 1.1, color: pnlColor(overview.dayPnl) }}>
               {formatSignedYuan(overview.dayPnl)}
             </Typography>
             <Typography className="num" sx={{ fontSize: 11, color: pnlColor(overview.dayPnl) }}>
@@ -155,8 +155,8 @@ export default function AccountDetailPage() {
             </Typography>
           </Box>
           <Box>
-            <Typography sx={{ fontSize: 11, color: MUJI.ink3, letterSpacing: '0.15em' }}>累计收益率</Typography>
-            <Typography className="num" sx={{ fontSize: 17, fontWeight: 300, mt: 1.1, color: pnlColor(overview.totalPnl) }}>
+            <Typography sx={{ fontSize: 11, color: MUJI.ink3, letterSpacing: '0.05em' }}>累计收益率</Typography>
+            <Typography className="num" sx={{ fontSize: 17, fontWeight: 400, mt: 1.1, color: pnlColor(overview.totalPnl) }}>
               {formatPct(overview.totalPnlPct)}
             </Typography>
             <Typography className="num" sx={{ fontSize: 11, color: MUJI.ink3 }}>

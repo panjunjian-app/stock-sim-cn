@@ -57,9 +57,9 @@ export default function AccountListPage() {
   return (
     <Box sx={{ flex: 1, px: 6.5, pt: 3.5 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 2.75 }}>
-        <Typography sx={{ fontSize: 18, fontWeight: 300, letterSpacing: '0.25em', flex: 1 }}>
+        <Typography sx={{ fontSize: 18, fontWeight: 400, letterSpacing: '0.05em', flex: 1 }}>
           我的交易账户
-          <Typography component="small" sx={{ fontSize: 12, color: MUJI.ink3, fontWeight: 300, ml: 1.5, letterSpacing: '0.1em' }}>
+          <Typography component="small" sx={{ fontSize: 12, color: MUJI.ink3, fontWeight: 400, ml: 1.5, letterSpacing: '0.1em' }}>
             共 {accounts.length} 个
           </Typography>
         </Typography>
@@ -89,7 +89,7 @@ export default function AccountListPage() {
             textAlign: 'center',
           }}
         >
-          <Typography sx={{ fontSize: 14, color: MUJI.ink, fontWeight: 300, letterSpacing: '0.15em' }}>
+          <Typography sx={{ fontSize: 14, color: MUJI.ink, fontWeight: 400, letterSpacing: '0.05em' }}>
             还没有交易账户
           </Typography>
           <Typography sx={{ fontSize: 12, color: MUJI.ink2, mt: 1 }}>

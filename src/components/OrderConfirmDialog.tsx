@@ -29,7 +29,7 @@ export default function OrderConfirmDialog({ open, input, quote, cashAvailable, 
 
   return (
     <Dialog open={open} onClose={onCancel} maxWidth={false} PaperProps={{ sx: { width: 420, bgcolor: MUJI.card } }}>
-      <DialogTitle sx={{ fontWeight: 300, letterSpacing: '0.3em', fontSize: 15 }}>
+      <DialogTitle sx={{ fontWeight: 400, letterSpacing: '0.08em', fontSize: 15 }}>
         确认{sideText(input.side)}
       </DialogTitle>
       <DialogContent>
@@ -46,13 +46,13 @@ export default function OrderConfirmDialog({ open, input, quote, cashAvailable, 
           }}
         >
           <Box>
-            <Typography sx={{ fontSize: 14, fontWeight: 300, letterSpacing: '0.1em' }}>{quote?.name ?? input.symbol}</Typography>
+            <Typography sx={{ fontSize: 14, fontWeight: 400, letterSpacing: '0.1em' }}>{quote?.name ?? input.symbol}</Typography>
             <Typography className="num" sx={{ fontSize: 10.5, color: MUJI.ink3, mt: 0.5 }}>
               {input.symbol.replace(/^(sh|sz)/, '')} · {input.symbol.startsWith('sh') ? '沪A' : '深A'} ·{' '}
               {input.orderType === 'limit' ? '限价委托' : '市价委托'}
             </Typography>
           </Box>
-          <Typography className="num" sx={{ fontSize: 15, fontWeight: 300, color: isBuy ? MUJI.up : MUJI.down }}>
+          <Typography className="num" sx={{ fontSize: 15, fontWeight: 400, color: isBuy ? MUJI.up : MUJI.down }}>
             {price > 0 ? formatYuanSymbol(price) : '—'}
           </Typography>
         </Box>
