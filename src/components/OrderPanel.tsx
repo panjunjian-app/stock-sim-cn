@@ -123,7 +123,7 @@ export default function OrderPanel({ symbol, quote, position, cashAvailable, onS
   } as const;
 
   return (
-    <Box sx={{ flex: '0 0 292px', bgcolor: MUJI.card, borderLeft: `1px solid ${MUJI.line}`, p: '20px 24px', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ flex: '0 0 292px', bgcolor: MUJI.card, borderLeft: `1px solid ${MUJI.line}`, p: '20px 24px', display: 'flex', flexDirection: 'column', overflowY: 'auto', minHeight: 0 }}>
       {/* 买/卖 Tab */}
       <Box sx={{ display: 'flex', borderBottom: `1px solid ${MUJI.line}` }}>
         {(['buy', 'sell'] as Side[]).map((s) => {

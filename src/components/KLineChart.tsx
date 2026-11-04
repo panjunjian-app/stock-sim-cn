@@ -67,6 +67,9 @@ export default function KLineChart({ bars }: KLineChartProps) {
     if (!chart) {
       return;
     }
+    // 容器尺寸自适应：外层高度弹性变化（一屏布局）时自动重绘
+    const ro = new ResizeObserver(() => chart.resize());
+    ro.observe(containerRef.current);
     chart.createIndicator({ name: 'MA', calcParams: [5, 10] }, false, { id: 'main_pane' });
     chart.createIndicator('VOL', false, { id: 'vol_pane' });
     const data = bars.map((b) => ({
@@ -79,6 +82,7 @@ export default function KLineChart({ bars }: KLineChartProps) {
     }));
     chart.applyNewData(data);
     return () => {
+      ro.disconnect();
       dispose(containerRef.current as HTMLElement);
     };
   }, [bars]);

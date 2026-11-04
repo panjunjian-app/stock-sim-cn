@@ -55,7 +55,7 @@ export default function AccountListPage() {
   };
 
   return (
-    <Box sx={{ flex: 1, px: 6.5, pt: 3.5 }}>
+    <Box sx={{ flex: 1, px: 6.5, pt: 3.5, overflowY: 'auto', minHeight: 0 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 2.75 }}>
         <Typography sx={{ fontSize: 18, fontWeight: 400, letterSpacing: '0.05em', flex: 1 }}>
           我的交易账户

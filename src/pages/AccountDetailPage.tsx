@@ -96,7 +96,7 @@ export default function AccountDetailPage() {
 
   if (error) {
     return (
-      <Box sx={{ flex: 1, p: 4 }}>
+      <Box sx={{ flex: 1, p: 4, overflowY: 'auto', minHeight: 0 }}>
         <Typography sx={{ fontSize: 13, color: MUJI.up }}>{error}</Typography>
         <Button variant="outlined" sx={{ mt: 2 }} onClick={() => navigate('/accounts')}>
           返回账户列表
@@ -106,7 +106,7 @@ export default function AccountDetailPage() {
   }
   if (!overview) {
     return (
-      <Box sx={{ flex: 1, p: 4 }}>
+      <Box sx={{ flex: 1, p: 4, overflowY: 'auto', minHeight: 0 }}>
         <Typography sx={{ fontSize: 13, color: MUJI.ink3, letterSpacing: '0.1em' }}>加载中…</Typography>
       </Box>
     );

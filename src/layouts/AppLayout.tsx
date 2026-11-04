@@ -37,7 +37,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
   const isMarket = path.startsWith('/market') || path.startsWith('/trade');
 
   return (
-    <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: MUJI.paper }}>
+    <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', bgcolor: MUJI.paper, overflow: 'hidden' }}>
       {/* 常驻模拟盘横幅 */}
       <Box
         sx={{
@@ -121,8 +121,8 @@ export default function AppLayout({ children }: PropsWithChildren) {
         )}
       </Box>
 
-      {/* 页面内容 */}
-      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>{children ?? <Outlet />}</Box>
+      {/* 页面内容（固定视口内，由各页面自行管理滚动） */}
+      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>{children ?? <Outlet />}</Box>
 
       {/* 底部免责声明 */}
       <DisclaimerBanner />

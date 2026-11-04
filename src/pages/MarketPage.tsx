@@ -141,15 +141,16 @@ export default function MarketPage() {
   const position = positions.find((p) => p.symbol === symbol);
 
   return (
-    <Box sx={{ flex: 1, display: 'flex', minHeight: 0 }}>
-      {/* 左：自选股 */}
-      <Box sx={{ flex: '0 0 232px', bgcolor: MUJI.card, borderRight: `1px solid ${MUJI.line}`, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
-        <Box sx={{ px: 3.5, pt: 2.5, pb: 2 }}>
+    <Box sx={{ flex: 1, display: 'flex', minHeight: 0, height: '100%', overflow: 'hidden' }}>
+      {/* 左：自选股（搜索区固定，列表超出一屏内部滚动） */}
+      <Box sx={{ flex: '0 0 232px', bgcolor: MUJI.card, borderRight: `1px solid ${MUJI.line}`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <Box sx={{ px: 3.5, pt: 2.5, pb: 2, flex: '0 0 auto' }}>
           <StockSearch value={symbol} onChange={selectSymbol} />
         </Box>
-        <Box sx={{ px: 2, pb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, fontWeight: 400, letterSpacing: '0.05em' }}>
+        <Box sx={{ px: 2, pb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, fontWeight: 400, letterSpacing: '0.05em', flex: '0 0 auto' }}>
           <span>自选股（{STOCKS.length}）</span>
         </Box>
+        <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
         {STOCKS.map((s) => {
           const q = quotes[s.symbol];
           const chg = q ? q.price - q.prevClose : 0;
@@ -203,9 +204,10 @@ export default function MarketPage() {
             </Box>
           );
         })}
+        </Box>
       </Box>
 
-      {/* 中：行情 + 图表 */}
+      {/* 中：行情 + 图表（quote/tabs 固定，图表自适应剩余高度，小屏整列滚动兜底） */}
       <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, px: 2.75, pt: 2, overflowY: 'auto' }}>
         <QuoteHeader quote={quote} />
         <Box sx={{ display: 'flex', gap: 3, mt: 1.75, borderBottom: `1px solid ${MUJI.line}`, alignItems: 'center' }}>
@@ -233,7 +235,8 @@ export default function MarketPage() {
             <MarketStatusBanner />
           </Box>
         </Box>
-        <Box sx={{ height: 420, position: 'relative' }}>
+        {/* 图表：自适应撑满剩余高度（小屏保底 280px，超出则整列滚动） */}
+        <Box sx={{ flex: '1 1 auto', minHeight: 280, position: 'relative' }}>
           {chartLoading ? (
             <Typography sx={{ p: 4, textAlign: 'center', fontSize: 12, color: MUJI.ink3 }}>图表加载中…</Typography>
           ) : chartTab === 'minute' ? (
