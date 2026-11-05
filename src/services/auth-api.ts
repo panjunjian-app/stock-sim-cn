@@ -6,17 +6,17 @@ interface AuthPayload {
 }
 
 export const authApi = {
-  /** 发送验证码（purpose: register | reset）；未配置邮件服务时返回 devCode（开发模式自动填入） */
-  sendCode(email: string, purpose: 'register' | 'reset'): Promise<{ sent: true; devCode?: string }> {
+  /** 发送验证码（purpose: reset，找回密码用）；未配置邮件服务时返回 devCode（开发模式自动填入） */
+  sendCode(email: string, purpose: 'reset'): Promise<{ sent: true; devCode?: string }> {
     return apiPost('/api/auth/send-code', { email, purpose });
   },
   /** 校验验证码（服务端置 verified=1） */
-  verifyCode(email: string, purpose: 'register' | 'reset', code: string): Promise<{ verified: true }> {
+  verifyCode(email: string, purpose: 'reset', code: string): Promise<{ verified: true }> {
     return apiPost('/api/auth/verify-code', { email, purpose, code });
   },
-  /** 注册（自动登录，Set-Cookie） */
-  register(email: string, code: string, password: string): Promise<AuthPayload> {
-    return apiPost('/api/auth/register', { email, purpose: 'register', code, password });
+  /** 注册（邮箱唯一标识，无需验证码；成功自动登录，Set-Cookie） */
+  register(email: string, password: string): Promise<AuthPayload> {
+    return apiPost('/api/auth/register', { email, password });
   },
   /** 登录 */
   login(email: string, password: string): Promise<AuthPayload> {

@@ -5,11 +5,11 @@ import type { PagesContext } from '../../lib/env';
 
 interface Body {
   email?: string;
-  purpose?: 'register' | 'reset';
+  purpose?: 'reset';
   code?: string;
 }
 
-/** POST /api/auth/verify-code — 校验验证码（通过后置 verified=1） */
+/** POST /api/auth/verify-code — 校验验证码（仅找回密码场景；通过后置 verified=1） */
 export const onRequestPost = async (ctx: PagesContext): Promise<Response> => {
   try {
     const body = (await ctx.request.json().catch(() => ({}))) as Body;
@@ -19,8 +19,8 @@ export const onRequestPost = async (ctx: PagesContext): Promise<Response> => {
     if (!checkEmail(email).ok) {
       throw new ApiError(CODE.BAD_PARAM, '邮箱格式不正确');
     }
-    if (purpose !== 'register' && purpose !== 'reset') {
-      throw new ApiError(CODE.BAD_PARAM, 'purpose 必须为 register 或 reset');
+    if (purpose !== 'reset') {
+      throw new ApiError(CODE.BAD_PARAM, 'purpose 必须为 reset（注册无需验证码）');
     }
     if (!checkVerifyCode(code).ok) {
       throw new ApiError(CODE.BAD_PARAM, '验证码应为 6 位数字');

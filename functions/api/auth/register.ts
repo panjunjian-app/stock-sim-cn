@@ -1,42 +1,29 @@
 import { ApiError, CODE, handleError } from '../../lib/response';
-import { recheckVerified } from '../../lib/email';
 import { issueJwt, okWithCookie } from '../../lib/auth';
 import { hashPassword } from '../../lib/password';
-import { checkEmail, checkPassword, checkVerifyCode } from '../../../shared/validate';
+import { checkEmail, checkPassword } from '../../../shared/validate';
 import type { PagesContext } from '../../lib/env';
 
 interface Body {
   email?: string;
-  purpose?: 'register' | 'reset';
-  code?: string;
   password?: string;
 }
 
-/** POST /api/auth/register — 注册（复查 verified 标记 + code 哈希），成功即自动登录 */
+/** POST /api/auth/register — 注册（邮箱为唯一标识，无需验证码），成功即自动登录 */
 export const onRequestPost = async (ctx: PagesContext): Promise<Response> => {
   try {
     const body = (await ctx.request.json().catch(() => ({}))) as Body;
     const email = (body.email ?? '').trim().toLowerCase();
-    const purpose = body.purpose;
-    const code = (body.code ?? '').trim();
     const password = body.password ?? '';
     if (!checkEmail(email).ok) {
       throw new ApiError(CODE.BAD_PARAM, '邮箱格式不正确');
-    }
-    if (purpose !== 'register') {
-      throw new ApiError(CODE.BAD_PARAM, 'purpose 必须为 register');
-    }
-    if (!checkVerifyCode(code).ok) {
-      throw new ApiError(CODE.BAD_PARAM, '验证码应为 6 位数字');
     }
     const pwCheck = checkPassword(password);
     if (!pwCheck.ok) {
       throw new ApiError(CODE.BAD_PARAM, pwCheck.reason ?? '密码不符合要求');
     }
 
-    // 服务端复查：不信任前端「已验证」状态
-    await recheckVerified(ctx.env.DB, email, 'register', code);
-
+    // 邮箱唯一性：唯一标识，重复注册直接拒绝
     const exists = await ctx.env.DB.prepare('SELECT id FROM users WHERE email = ?1').bind(email).first<{ id: number }>();
     if (exists) {
       throw new ApiError(CODE.EMAIL_TAKEN, '该邮箱已注册，请直接登录', 409);

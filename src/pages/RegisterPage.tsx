@@ -5,11 +5,10 @@ import { MUJI } from '../theme/muji-theme';
 import { authApi } from '../services/auth-api';
 import { ApiError } from '../services/http';
 import { useAuthStore } from '../store/auth-store';
-import { checkEmail, checkPassword, checkVerifyCode, passwordStrength } from '../../shared/validate';
-import CountdownButton from '../components/CountdownButton';
+import { checkEmail, checkPassword, passwordStrength } from '../../shared/validate';
 import DisclaimerBanner from '../components/DisclaimerBanner';
 
-const STEPS = ['输入邮箱', '验证码', '设置密码'] as const;
+const STEPS = ['输入邮箱', '设置密码'] as const;
 
 function RuleDot({ ok }: { ok: boolean }) {
   return (
@@ -48,17 +47,15 @@ function StrengthBar({ pw }: { pw: string }) {
   );
 }
 
-/** RegisterPage — ② 三步注册：邮箱 → 验证码 → 设置密码（实时强度校验） */
+/** RegisterPage — 两步注册：邮箱（唯一标识）→ 设置密码（实时强度校验），无需验证码 */
 export default function RegisterPage() {
   const navigate = useNavigate();
   const setUser = useAuthStore((s) => s.setUser);
   const [step, setStep] = useState(0);
   const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const emailOk = checkEmail(email).ok;
@@ -69,39 +66,11 @@ export default function RegisterPage() {
     punct: /[^A-Za-z0-9]/.test(password),
   };
 
-  const sendCode = async () => {
-    setError(null);
-    setNotice(null);
-    try {
-      const r = await authApi.sendCode(email.trim().toLowerCase(), 'register');
-      if (r.devCode) {
-        setCode(r.devCode);
-        setNotice('开发模式（未配置邮件服务）：验证码已自动填入');
-      }
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : '验证码发送失败');
-      throw e;
-    }
-  };
-
-  const verify = async () => {
-    setSubmitting(true);
-    setError(null);
-    try {
-      await authApi.verifyCode(email.trim().toLowerCase(), 'register', code.trim());
-      setStep(2);
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : '验证码校验失败');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   const register = async () => {
     setSubmitting(true);
     setError(null);
     try {
-      const { user } = await authApi.register(email.trim().toLowerCase(), code.trim(), password);
+      const { user } = await authApi.register(email.trim().toLowerCase(), password);
       setUser(user);
       navigate('/accounts', { replace: true });
     } catch (e) {
@@ -179,7 +148,9 @@ export default function RegisterPage() {
 
           {step === 0 && (
             <>
-              <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.05em', mb: 1 }}>邮箱</Typography>
+              <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.05em', mb: 1 }}>
+                邮箱（唯一标识，用于登录）
+              </Typography>
               <TextField fullWidth size="small" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
               <Button
                 fullWidth
@@ -194,40 +165,6 @@ export default function RegisterPage() {
           )}
 
           {step === 1 && (
-            <>
-              <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.05em', mb: 1 }}>
-                验证码（发送至 {email}）
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 1.5 }}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder="6 位数字"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  inputProps={{ inputMode: 'numeric' }}
-                />
-                <CountdownButton onSend={sendCode} />
-              </Box>
-              {notice && (
-                <Typography sx={{ fontSize: 11.5, color: MUJI.ink3, mt: 0.75 }}>{notice}</Typography>
-              )}
-              <Button
-                fullWidth
-                variant="contained"
-                sx={{ height: 44, mt: 3 }}
-                disabled={!checkVerifyCode(code).ok || submitting}
-                onClick={() => void verify()}
-              >
-                {submitting ? '校验中…' : '下一步'}
-              </Button>
-              <Button fullWidth variant="text" sx={{ mt: 1, color: MUJI.ink3 }} onClick={() => setStep(0)}>
-                上一步
-              </Button>
-            </>
-          )}
-
-          {step === 2 && (
             <>
               <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.05em', mb: 1 }}>设置密码</Typography>
               <TextField fullWidth size="small" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
@@ -257,7 +194,7 @@ export default function RegisterPage() {
                 </Box>
               </Box>
               <Box sx={{ display: 'flex', gap: 1.5, mt: 3 }}>
-                <Button variant="outlined" sx={{ flex: '0 0 110px', height: 44, color: MUJI.ink2 }} onClick={() => setStep(1)}>
+                <Button variant="outlined" sx={{ flex: '0 0 110px', height: 44, color: MUJI.ink2 }} onClick={() => setStep(0)}>
                   上一步
                 </Button>
                 <Button
