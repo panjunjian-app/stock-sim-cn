@@ -1,43 +1,32 @@
 sequenceDiagram
-    autonumber
-    actor U as 用户
-    participant OP as OrderPanel
-    participant API as POST /api/accounts/:id/orders
-    participant CAL as tradingCalendar
-    participant DB as D1
-    participant MK as MarketDataService
-    participant ME as MatchingEngine
+    participant FE as 前端(DashboardPage/AppLayout)
+    participant API as Functions(/api/bi/*)
+    participant SVC as lib/bi(snapshot/replay/aggregate)
+    participant D1 as D1(SQLite)
+    participant MKT as 行情源(腾讯/新浪)
 
-    U->>OP: 填写委托并确认
-    OP->>API: {symbol, side, orderType, price?, quantity}
-    API->>API: requireAuth + 账户属主校验
-    API->>CAL: isInTradingHours(now)?
-    CAL-->>API: true
-    API->>DB: 防刷/持仓/资金/涨跌停校验
-    alt 校验失败
-        API->>DB: orders INSERT (rejected, reason)
-        API-->>OP: 400 废单原因
-    else 校验通过
-        API->>DB: 买入冻结资金 / 卖出冻结可卖股
-        API->>MK: fetchQuotes([symbol])
-        MK-->>API: Quote{price}
-        API->>DB: orders INSERT (pending)
-        API->>ME: tryMatch(order, quote)
-        alt 可成交（市价 或 限价穿越 且 未封板）
-            ME->>DB: order=filled, trades INSERT(含三费)
-            ME->>DB: positions 更新（qty/avg_cost/日切字段）
-            ME->>DB: cash_flows INSERT（净额+费用备注）
-            ME->>DB: 资金解冻结算（多退少补）
-            API-->>OP: {matched:true, order, trade}
-        else 暂不可成交
-            API-->>OP: {matched:false, order(pending)}
-        end
+    Note over FE: AppLayout 挂载全局心跳
+    loop 每 60s
+        FE->>API: POST /api/bi/snapshot
+        API->>API: requireAuth → userId
+        API->>SVC: snapshotUser(userId)
+        SVC->>D1: 查当日快照 / 全部账户持仓 symbols
+        SVC->>MKT: fetchQuotes(去重 symbols，批量1次)
+        SVC->>D1: upsert daily_snapshots（含短路判断）
+        API-->>FE: {date, accounts:[{accountId, action}]}
     end
-    loop 每 5 秒（账户有未成交委托时）
-        OP->>API: POST /api/market/tick {accountId}
-        API->>DB: 查 pending 委托 + 日切结算
-        API->>MK: fetchQuotes(相关标的)
-        API->>ME: 逐单 tryMatch
-        ME-->>API: matchedCount / 新成交
-        API-->>OP: 刷新委托、持仓、总览
+
+    FE->>API: GET /api/bi/report?range=7d&acct=all
+    API->>SVC: aggregate(range, acct)
+    SVC->>D1: 查区间快照 → 检测缺口
+    alt 存在缺口
+        SVC->>D1: 查 trades/cash_flows（时序回放）
+        SVC->>MKT: fetchKlineWithFallback(sh000001) → 交易日历
+        SVC->>MKT: 逐 symbol fetchKline(day) → 收盘价（串行+150ms 间隔）
+        SVC->>D1: db.batch 批量 upsert 补齐快照（≤50 条/批）
     end
+    SVC->>D1: 查快照序列 + positions + 区间 trades
+    SVC->>MKT: fetchQuotes(在持 symbols，1次)
+    SVC->>SVC: KPI/净值曲线/分布/贡献等全部指标
+    API-->>FE: 完整 BiReport JSON（replay.complete 状态）
+    Note over FE: complete=false 时显示「历史生成中」并 5s 重试

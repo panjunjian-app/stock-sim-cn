@@ -179,3 +179,87 @@ export interface ApiResponse<T> {
   data: T;
   message: string;
 }
+
+// ==================== BI 报表（/api/bi/*） ====================
+
+/** BI 时间范围 */
+export type BiRange = '7d' | '30d' | '90d' | 'ytd' | 'all';
+
+/** 账户维度：all=全部账户汇总，否则为账户 id 字符串 */
+export type BiAcct = 'all' | string;
+
+/** 资产净值序列点（金额为分） */
+export interface BiNavPoint {
+  date: string;
+  totalAssets: Cents;
+  /** 以区间首日资产归一为 1.0 的净值 */
+  nav: number;
+}
+
+/** 每日盈亏序列点（分） */
+export interface BiDailyPnlPoint {
+  date: string;
+  pnl: Cents;
+}
+
+/** KPI 卡片组（金额为分，比率为百分数两位小数） */
+export interface BiKpi {
+  totalAssets: Cents;
+  rangeReturnPct: number;
+  rangePnl: Cents;
+  dayPnl: Cents;
+  realizedPnl: Cents;
+  unrealizedPnl: Cents;
+  maxDrawdownPct: number;
+  maxDrawdownDate: string | null;
+}
+
+/** 持仓对比行（成本 vs 现价） */
+export interface BiPositionRow {
+  symbol: Symbol;
+  name: string;
+  qty: number;
+  avgCost: Cents;
+  price: Cents;
+  marketValue: Cents;
+  pnl: Cents;
+  pnlPct: number;
+  weightPct: number;
+}
+
+/** 资产构成扇区 */
+export interface BiAllocationSlice {
+  name: string;
+  value: Cents;
+  pct: number;
+}
+
+/** 个股盈亏贡献项 */
+export interface BiContributionItem {
+  symbol: Symbol;
+  name: string;
+  pnl: Cents;
+  pct: number;
+}
+
+/** BI 聚合报表（GET /api/bi/report） */
+export interface BiReport {
+  range: BiRange;
+  acct: BiAcct;
+  accounts: Array<{ id: number; name: string }>;
+  kpi: BiKpi;
+  navSeries: BiNavPoint[];
+  dailyPnlSeries: BiDailyPnlPoint[];
+  positions: BiPositionRow[];
+  allocation: BiAllocationSlice[];
+  concentration: { top1Pct: number; top5Pct: number };
+  topContribution: BiContributionItem[];
+  pnlRatio: BiContributionItem[];
+  replay: { triggered: boolean; filledDays: number; complete: boolean };
+}
+
+/** 快照上报响应（POST /api/bi/snapshot） */
+export interface BiSnapshotResult {
+  date: string;
+  accounts: Array<{ accountId: number; action: 'created' | 'updated' | 'skipped' }>;
+}

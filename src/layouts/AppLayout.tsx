@@ -5,6 +5,7 @@ import { MUJI } from '../theme/muji-theme';
 import DisclaimerBanner from '../components/DisclaimerBanner';
 import { useAuthStore } from '../store/auth-store';
 import { authApi } from '../services/auth-api';
+import { useSnapshotHeartbeat } from '../hooks/use-snapshot-heartbeat';
 
 const SIM_BANNER = '⚠️ 模拟盘 · 虚拟资金 · 与真实财产无关 · 仅供学习娱乐';
 
@@ -33,8 +34,12 @@ export default function AppLayout({ children }: PropsWithChildren) {
     }) as const;
 
   const path = window.location.pathname;
+  const isDashboard = path.startsWith('/dashboard');
   const isAccounts = path.startsWith('/accounts');
   const isMarket = path.startsWith('/market') || path.startsWith('/trade');
+
+  // 登录态全局快照心跳（60s，静默失败）
+  useSnapshotHeartbeat(Boolean(user));
 
   return (
     <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', bgcolor: MUJI.paper, overflow: 'hidden' }}>
@@ -67,7 +72,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
           gap: 5,
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }} onClick={() => navigate('/accounts')}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }} onClick={() => navigate('/dashboard')}>
           <Box
             sx={{
               width: 28,
@@ -88,6 +93,9 @@ export default function AppLayout({ children }: PropsWithChildren) {
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 1, flex: 1 }}>
+          <Button disableRipple onClick={() => navigate('/dashboard')} sx={{ ...activeTabStyle(isDashboard), px: 1.75, py: 1, fontSize: 13.5, fontWeight: 400, letterSpacing: '0.1em' }}>
+            分析报告
+          </Button>
           <Button disableRipple onClick={() => navigate('/accounts')} sx={{ ...activeTabStyle(isAccounts), px: 1.75, py: 1, fontSize: 13.5, fontWeight: 400, letterSpacing: '0.1em' }}>
             我的账户
           </Button>

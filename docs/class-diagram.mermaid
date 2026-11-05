@@ -1,0 +1,102 @@
+classDiagram
+    direction LR
+
+    %% ===== 后端服务层 =====
+    class TradingDayUtil {
+        <<module lib/trading-day.ts>>
+        -calCache: Cache~string[]~$ 负号用于示例
+        +bjDate(now) string
+        +bjTime(now) string
+        +isTradingDay(date) boolean
+        +tradingCalendar(db, needCount) string[]
+    }
+
+    class SnapshotService {
+        <<module lib/bi/snapshot.ts>>
+        +snapshotUser(db, marketData, userId) SnapshotResult
+        -shouldSkip(existing, nowBj) action
+        -upsertOne(db, row) void
+    }
+
+    class ReplayService {
+        <<module lib/bi/replay.ts>>
+        +walkTrades(trades) WalkResult
+        +replayGaps(db, marketData, userId, accountIds, days) ReplayInfo
+        -fetchCloses(sym, days) Map~date,cents~
+        -batchUpsert(db, rows) void
+    }
+
+    class AggregateService {
+        <<module lib/bi/aggregate.ts>>
+        +buildReport(db, marketData, userId, range, acct) BiReport
+        -kpis(snapshots, trades) Kpi
+        -navSeries(snapshots) NavPoint[]
+        -positionViews(positions, quotes) PositionView[]
+    }
+
+    class SnapshotEndpoint {
+        <<functions/api/bi/snapshot.ts>>
+        +onRequestPost(ctx) Response
+    }
+    class ReportEndpoint {
+        <<functions/api/bi/report.ts>>
+        +onRequestGet(ctx) Response
+    }
+
+    %% ===== 数据模型 =====
+    class DailySnapshot {
+        +userId: number
+        +accountId: number
+        +date: string
+        +totalAssets: Cents
+        +cash: Cents
+        +marketValue: Cents
+        +dayPnl: Cents
+        +snapshottedAt: string
+    }
+    class Trade {
+        +accountId: number
+        +symbol: string
+        +side: buy|sell
+        +price: Cents
+        +quantity: number
+        +netAmount: Cents
+        +tradedAt: string
+    }
+
+    %% ===== 前端 =====
+    class DashboardPage {
+        +useSearchParams() range, acct
+        +useReport() BiReport
+    }
+    class BiApi {
+        <<services/bi-api.ts>>
+        +getReport(range, acct) Promise~BiReport~
+        +postSnapshot() Promise~SnapshotResult~
+    }
+    class UseSnapshotHeartbeat {
+        <<hooks/use-snapshot-heartbeat.ts>>
+        -interval 60s
+        -skipWhenHidden() void
+    }
+    class ChartTheme {
+        <<components/dashboard/chart-theme.ts>>
+        +BI_COLORS
+        +biAxisProps
+        +BiTooltip
+        +fmtCents(cents) string
+    }
+
+    SnapshotEndpoint --> SnapshotService : 调用
+    ReportEndpoint --> AggregateService : 调用
+    SnapshotService --> TradingDayUtil : 交易日判断
+    SnapshotService --> DailySnapshot : upsert
+    ReplayService --> TradingDayUtil : 交易日序列
+    ReplayService --> Trade : 时序回放
+    ReplayService --> DailySnapshot : 批量补齐
+    AggregateService --> ReplayService : 懒触发回放
+    AggregateService --> DailySnapshot : 读序列
+    AggregateService ..> Trade : 已实现盈亏
+    DashboardPage --> BiApi : fetch
+    UseSnapshotHeartbeat --> BiApi : 60s POST
+    DashboardPage --> ChartTheme : 配色/格式化

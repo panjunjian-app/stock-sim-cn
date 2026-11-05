@@ -7,6 +7,7 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import AccountListPage from './pages/AccountListPage';
 import AccountDetailPage from './pages/AccountDetailPage';
 import MarketPage from './pages/MarketPage';
+import DashboardPage from './pages/DashboardPage';
 import { useAuthStore } from './store/auth-store';
 import { MUJI } from './theme/muji-theme';
 
@@ -33,12 +34,12 @@ function RequireAuth() {
   );
 }
 
-/** 已登录访问登录/注册页时跳转账户列表 */
+/** 已登录访问登录/注册页时跳转分析报告首页 */
 function RedirectIfAuthed({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user);
   const loaded = useAuthStore((s) => s.loaded);
   if (loaded && user) {
-    return <Navigate to="/accounts" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
   return <>{children}</>;
 }
@@ -71,13 +72,14 @@ export default function AppRouter() {
         }
       />
       <Route element={<RequireAuth />}>
+        <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/accounts" element={<AccountListPage />} />
         <Route path="/accounts/:id" element={<AccountDetailPage />} />
         <Route path="/market" element={<MarketPage />} />
         <Route path="/trade/:symbol" element={<MarketPage />} />
       </Route>
-      <Route path="/" element={<Navigate to="/accounts" replace />} />
-      <Route path="*" element={<Navigate to="/accounts" replace />} />
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
 }
