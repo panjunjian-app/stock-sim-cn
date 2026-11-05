@@ -141,7 +141,8 @@ export default function ContestRankingChart({ contest }: Props) {
         <BarChart data={data} margin={{ top: 44, right: 16, left: 4, bottom: 0 }} barCategoryGap="28%">
           <CartesianGrid {...biGridProps} />
           <XAxis dataKey="name" {...biAxisProps} tick={{ fontSize: 12.5, fill: BI_COLORS.ink }} />
-          <YAxis {...biAxisProps} width={64} domain={['auto', 'auto']} tickFormatter={(v: number) => fmtCents(Math.round(v * 100))} />
+          {/* Y 轴必须从 0 起：['auto','auto'] 会以数据最小值为起点，资金接近时微小差异被放大成悬殊柱高 */}
+          <YAxis {...biAxisProps} width={64} domain={[0, 'auto']} allowDecimals={false} tickFormatter={(v: number) => fmtCents(Math.round(v * 100))} />
           <ReferenceLine y={contest.initCash / 100} stroke={MUJI.line} strokeDasharray="4 4" />
           <Tooltip
             contentStyle={{ fontSize: 12, border: `1px solid ${MUJI.line}`, borderRadius: 4 }}
