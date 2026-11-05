@@ -151,6 +151,8 @@ export interface AccountInfo {
   contestName?: string | null;
   /** 所属比赛状态：pending/active 赛期不可删；finished/cancelled（历史）可删 */
   contestStatus?: string | null;
+  /** 昨日收市总资产基准（分）；开赛/开户第一天为 null → 当日盈亏=累计收益 */
+  prevSettledTotal?: number | null;
 }
 
 // ==================== 炒炒乐大比拼 ====================

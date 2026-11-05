@@ -3,6 +3,7 @@
  */
 import { ApiError, CODE } from './response';
 import { INIT_CASH_MAX, INIT_CASH_MIN, checkInitCash, checkQuantity } from '../../shared/validate';
+import { beijingDateKey } from '../../shared/trading-calendar';
 import type { Cents } from '../../shared/types';
 import type { D1Database } from './env';
 
@@ -48,6 +49,8 @@ export interface AccountListItem extends AccountRow {
   contest_name: string | null;
   /** 所属比赛状态（比赛账户才有）：进行中/pending 不可删，finished/cancelled（历史）可删 */
   contest_status: string | null;
+  /** 昨日收市总资产基准（早于今天的最近收市快照；开赛/开户第一天为 null → 当日盈亏=累计收益） */
+  prev_settled_total: number | null;
   positions_count: number;
   total_deposit: number;
   position_symbols: Array<{ symbol: string; symbolName: string; qty: number; avgCost: number }>;
@@ -197,10 +200,16 @@ export async function listAccounts(db: D1Database, userId: number): Promise<Acco
       .prepare("SELECT COALESCE(SUM(amount), 0) AS s FROM cash_flows WHERE account_id = ?1 AND type = 'deposit'")
       .bind(acc.id)
       .first<{ s: number }>();
+    // 昨日收市基准：早于今天的最近收市快照（15:05 覆盖口径）；无 → 开赛/开户第一天
+    const prev = await db
+      .prepare('SELECT total_assets FROM daily_snapshots WHERE account_id = ?1 AND date < ?2 ORDER BY date DESC LIMIT 1')
+      .bind(acc.id, beijingDateKey())
+      .first<{ total_assets: number }>();
     items.push({
       ...acc,
       contest_name: acc.contest_id !== null ? contestMeta.get(acc.contest_id)?.name ?? null : null,
       contest_status: acc.contest_id !== null ? contestMeta.get(acc.contest_id)?.status ?? null : null,
+      prev_settled_total: prev?.total_assets ?? null,
       positions_count: positions.length,
       // 累计入金 = Σ deposit 流水（开户时的 init_cash 已写入为首笔 deposit 流水）
       total_deposit: depositSum?.s ?? 0,

@@ -28,10 +28,12 @@ export default function AccountCard({ account, quotes, onDelete, deletable = tru
     prevValue += p.qty * (q ? q.prevClose : p.avgCost);
   }
   const totalAsset = account.cashAvailable + account.frozenCash + marketValue;
-  const dayPnl = marketValue - prevValue;
-  const dayPnlPct = prevValue > 0 ? (dayPnl / prevValue) * 100 : 0;
   const totalPnl = totalAsset - account.totalDeposit;
   const totalPnlPct = account.totalDeposit > 0 ? (totalPnl / account.totalDeposit) * 100 : 0;
+  // 当日盈亏 = 实时总资产 − 昨日收市总资产基准；开赛/开户第一天（无昨日快照）→ 等于累计收益
+  const dayPnl = account.prevSettledTotal != null ? totalAsset - account.prevSettledTotal : totalPnl;
+  const dayPnlBase = account.prevSettledTotal != null ? account.prevSettledTotal : account.totalDeposit;
+  const dayPnlPct = dayPnlBase > 0 ? (dayPnl / dayPnlBase) * 100 : 0;
 
   return (
     <Box
