@@ -159,6 +159,7 @@ export interface ContestStanding {
   userId: number;
   nickname: string;
   email: string;
+  avatar?: string;
   role: 'creator' | 'invitee';
   inviteStatus: 'pending' | 'accepted' | 'declined';
   accountId: number | null;

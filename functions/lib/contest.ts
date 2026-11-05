@@ -192,20 +192,20 @@ export async function contestStandings(db: D1Database, contest: ContestRow): Pro
   const rows = await db
     .prepare(
       `SELECT p.user_id, p.role, p.invite_status, p.account_id, p.is_winner, p.final_total,
-              u.email, COALESCE(NULLIF(u.nickname, ''), u.email) AS nickname
+              u.email, COALESCE(NULLIF(u.nickname, ''), u.email) AS nickname, u.avatar
        FROM contest_participants p JOIN users u ON u.id = p.user_id
        WHERE p.contest_id = ?1 ORDER BY p.id`
     )
     .bind(contest.id)
     .all<{
       user_id: number; role: 'creator' | 'invitee'; invite_status: 'pending' | 'accepted' | 'declined';
-      account_id: number | null; is_winner: number; final_total: number | null; email: string; nickname: string;
+      account_id: number | null; is_winner: number; final_total: number | null; email: string; nickname: string; avatar: string;
     }>();
   const parts = rows.results ?? [];
 
   if (contest.status === 'finished') {
     return parts.map((p) => ({
-      userId: p.user_id, nickname: p.nickname, email: p.email, role: p.role, inviteStatus: p.invite_status,
+      userId: p.user_id, nickname: p.nickname, email: p.email, avatar: p.avatar, role: p.role, inviteStatus: p.invite_status,
       accountId: p.account_id, isWinner: p.is_winner === 1, finalTotal: p.final_total, currentTotal: null, yesterdayPnl: null,
     }));
   }
@@ -273,7 +273,7 @@ export async function contestStandings(db: D1Database, contest: ContestRow): Pro
       currentTotal = total;
     }
     return {
-      userId: p.user_id, nickname: p.nickname, email: p.email, role: p.role, inviteStatus: p.invite_status,
+      userId: p.user_id, nickname: p.nickname, email: p.email, avatar: p.avatar, role: p.role, inviteStatus: p.invite_status,
       accountId: p.account_id, isWinner: p.is_winner === 1, finalTotal: p.final_total,
       currentTotal, yesterdayPnl: p.account_id !== null ? snapPnl.get(p.account_id) ?? null : null,
     };
