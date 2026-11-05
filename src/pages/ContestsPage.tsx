@@ -94,7 +94,16 @@ export default function ContestsPage() {
                         {c.status === 'cancelled' ? ' ｜ ❌ 已作废（有人拒绝）' : ''}
                       </Typography>
                       <Typography sx={{ fontSize: 12, color: MUJI.ink3, ml: 'auto' }}>
-                        {c.participants.map((p) => `${p.nickname}（${p.inviteStatus === 'accepted' ? '✓' : p.inviteStatus === 'declined' ? '✗' : '…'}）`).join(' ')}
+                        {c.participants.map((p) => {
+                          const icon = p.inviteStatus === 'accepted' ? '✓' : p.inviteStatus === 'declined' ? '✗' : '…';
+                          // 有昵称显示「昵称（邮箱）」，未设昵称只显示邮箱
+                          const label = p.nickname !== p.email ? `${p.nickname}（${p.email}）` : p.email;
+                          return (
+                            <Box component="span" key={p.userId} sx={{ mr: 1 }}>
+                              {label}（{icon}）
+                            </Box>
+                          );
+                        })}
                       </Typography>
                     </Box>
                   );
