@@ -17,6 +17,8 @@ export interface User {
   id: number;
   email: string;
   nickname?: string;
+  /** 头像 data URL（客户端压缩后的 base64，≤80KB；空串表示未设置） */
+  avatar?: string;
 }
 
 /** 行情快照（代理接口返回，价格字段为分） */

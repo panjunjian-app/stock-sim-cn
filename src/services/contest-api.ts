@@ -5,11 +5,14 @@ import { apiGet, apiPatch, apiPost } from './http';
 import type { ContestInfo, ContestInvitation } from '../../shared/types';
 
 export const profileApi = {
-  getProfile(): Promise<{ email: string; nickname: string }> {
+  getProfile(): Promise<{ email: string; nickname: string; avatar: string }> {
     return apiGet('/api/profile');
   },
+  updateProfile(fields: { nickname?: string; avatar?: string }): Promise<{ nickname?: string; avatar?: string }> {
+    return apiPatch('/api/profile', fields);
+  },
   updateNickname(nickname: string): Promise<{ nickname: string }> {
-    return apiPatch('/api/profile', { nickname });
+    return this.updateProfile({ nickname }) as Promise<{ nickname: string }>;
   },
   changePassword(oldPassword: string, newPassword: string): Promise<{ changed: boolean }> {
     return apiPost('/api/profile/password', { oldPassword, newPassword });

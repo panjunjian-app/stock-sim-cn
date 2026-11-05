@@ -117,23 +117,34 @@ export default function AppLayout({ children }: PropsWithChildren) {
               onClick={(e) => setAnchorEl(e.currentTarget)}
               sx={{ display: 'flex', alignItems: 'center', gap: 1.5, cursor: 'pointer', borderRadius: '4px', px: 0.75, py: 0.5, '&:hover': { bgcolor: MUJI.paper } }}
             >
-              <Box
-                sx={{
-                  width: 30,
-                  height: 30,
-                  borderRadius: '50%',
-                  bgcolor: MUJI.paper2,
-                  border: `1px solid ${MUJI.line}`,
-                  color: MUJI.ink2,
-                  fontSize: 12,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {(user.nickname || user.email).slice(0, 1).toUpperCase()}
-              </Box>
-              <Typography sx={{ fontSize: 12.5, color: MUJI.ink, letterSpacing: '0.1em' }}>{user.nickname || user.email}</Typography>
+              {user.avatar ? (
+                <Box
+                  component="img"
+                  src={user.avatar}
+                  alt="头像"
+                  sx={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${MUJI.line}` }}
+                />
+              ) : (
+                <Box
+                  sx={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: '50%',
+                    bgcolor: MUJI.paper2,
+                    border: `1px solid ${MUJI.line}`,
+                    color: MUJI.ink2,
+                    fontSize: 12,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {(user.nickname || user.email).slice(0, 1).toUpperCase()}
+                </Box>
+              )}
+              <Typography sx={{ fontSize: 12.5, color: MUJI.ink, letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>
+                {user.nickname ? `${user.nickname}（${user.email}）` : user.email}
+              </Typography>
             </Box>
             <Menu anchorEl={anchorEl} open={anchorEl !== null} onClose={() => setAnchorEl(null)} sx={{ '& .MuiMenuItem-root': { fontSize: 13.5 } }}>
               <MenuItem
