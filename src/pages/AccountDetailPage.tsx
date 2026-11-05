@@ -24,6 +24,8 @@ interface OverviewBaseState {
   cashAvailable: number;
   frozenCash: number;
   totalDeposit: number;
+  /** 昨日收市总资产基准；开赛/开户首日为 null → 当日盈亏=累计盈亏 */
+  prevSettledTotal?: number | null;
 }
 
 /** AccountDetailPage — ④ 账户详情：资产总览条 + 持仓/委托/成交/流水四 Tab */

@@ -9,27 +9,30 @@ export interface OverviewBase {
   cashAvailable: Cents;
   frozenCash: Cents;
   totalDeposit: Cents;
+  /** 昨日收市总资产基准（分）；开赛/开户第一天为 null/undefined → 当日盈亏=累计盈亏 */
+  prevSettledTotal?: Cents | null;
 }
 
-/** 合并行情快照计算总览（市值/总资产/当日盈亏/累计盈亏） */
+/** 合并行情快照计算总览（市值/总资产/当日盈亏/累计盈亏）
+ *  当日盈亏 = 实时总资产 − 昨日收市总资产基准；无基准（开赛/开户第一天）→ 等于累计盈亏 */
 export function computeOverview(
   base: OverviewBase,
   positions: Position[],
   quotes: Record<StockSymbol, Quote>,
 ): AccountOverview {
   let marketValue: Cents = 0;
-  let prevValue: Cents = 0;
   for (const p of positions) {
     const q = quotes[p.symbol];
     const last = q ? q.price : p.avgCost; // 无快照时以成本兜底
     marketValue += p.qty * last;
-    prevValue += p.qty * (q ? q.prevClose : p.avgCost);
   }
   const totalAsset = base.cashAvailable + base.frozenCash + marketValue;
-  const dayPnl = marketValue - prevValue;
-  const dayPnlPct = prevValue > 0 ? Number(((dayPnl / prevValue) * 100).toFixed(2)) : 0;
   const totalPnl = totalAsset - base.totalDeposit;
   const totalPnlPct = base.totalDeposit > 0 ? Number(((totalPnl / base.totalDeposit) * 100).toFixed(2)) : 0;
+  const hasPrev = base.prevSettledTotal != null;
+  const dayPnl = hasPrev ? totalAsset - (base.prevSettledTotal as Cents) : totalPnl;
+  const dayPnlBase = hasPrev ? (base.prevSettledTotal as Cents) : base.totalDeposit;
+  const dayPnlPct = dayPnlBase > 0 ? Number(((dayPnl / dayPnlBase) * 100).toFixed(2)) : 0;
   return {
     ...base,
     marketValue,
