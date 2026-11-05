@@ -46,6 +46,8 @@ export interface CashFlowRow {
 
 export interface AccountListItem extends AccountRow {
   contest_name: string | null;
+  /** 所属比赛状态（比赛账户才有）：进行中/pending 不可删，finished/cancelled（历史）可删 */
+  contest_status: string | null;
   positions_count: number;
   total_deposit: number;
   position_symbols: Array<{ symbol: string; symbolName: string; qty: number; avgCost: number }>;
@@ -171,15 +173,15 @@ export async function listAccounts(db: D1Database, userId: number): Promise<Acco
       .all<AccountRow>()
   ).results ?? [];
 
-  // 比赛账户补充比赛名
+  // 比赛账户补充比赛名与状态
   const contestIds = [...new Set(accounts.map((a) => a.contest_id).filter((x): x is number => x !== null))];
-  const contestNames = new Map<number, string>();
+  const contestMeta = new Map<number, { name: string; status: string }>();
   if (contestIds.length > 0) {
     const cRes = await db
       .prepare(`SELECT id, name, status FROM contests WHERE id IN (${contestIds.join(',')})`)
       .all<{ id: number; name: string; status: string }>();
     for (const c of cRes.results ?? []) {
-      contestNames.set(c.id, c.name);
+      contestMeta.set(c.id, { name: c.name, status: c.status });
     }
   }
 
@@ -197,7 +199,8 @@ export async function listAccounts(db: D1Database, userId: number): Promise<Acco
       .first<{ s: number }>();
     items.push({
       ...acc,
-      contest_name: acc.contest_id !== null ? contestNames.get(acc.contest_id) ?? null : null,
+      contest_name: acc.contest_id !== null ? contestMeta.get(acc.contest_id)?.name ?? null : null,
+      contest_status: acc.contest_id !== null ? contestMeta.get(acc.contest_id)?.status ?? null : null,
       positions_count: positions.length,
       // 累计入金 = Σ deposit 流水（开户时的 init_cash 已写入为首笔 deposit 流水）
       total_deposit: depositSum?.s ?? 0,

@@ -1,8 +1,7 @@
-import { handleError, ok } from '../../../lib/response';
+import { handleError, ok, ApiError, CODE } from '../../../lib/response';
 import { requireAuth } from '../../../lib/auth';
 import { requireOwnedAccount, softDeleteAccount } from '../../../lib/account-service';
 import { totalDeposit } from '../../../lib/account-service';
-import { guardContestAccount } from '../../../lib/contest';
 import type { PagesContext } from '../../../lib/env';
 
 interface Params {
@@ -31,12 +30,21 @@ export const onRequestGet = async (ctx: PagesContext<Params>): Promise<Response>
   }
 };
 
-/** DELETE /api/accounts/:id — 删除（软删，虚拟资金不可恢复） */
+/** DELETE /api/accounts/:id — 删除（软删，虚拟资金不可恢复）
+ *  比赛账户：赛期（pending/active）不可删除；比赛已结束/取消（历史记录）后可删除 */
 export const onRequestDelete = async (ctx: PagesContext<Params>): Promise<Response> => {
   try {
     const auth = await requireAuth(ctx);
     const acc = await requireOwnedAccount(ctx.env.DB, auth.userId, Number(ctx.params.id));
-    guardContestAccount(acc); // 比赛账户不可删除
+    if (acc.contest_id !== null && acc.contest_id !== undefined) {
+      const c = await ctx.env.DB
+        .prepare('SELECT status FROM contests WHERE id = ?1')
+        .bind(acc.contest_id)
+        .first<{ status: string }>();
+      if (c && (c.status === 'pending' || c.status === 'active')) {
+        throw new ApiError(CODE.BAD_PARAM, '比赛进行中，比赛账户不可删除（结束后转入历史记录即可删除）');
+      }
+    }
     await softDeleteAccount(ctx.env.DB, acc.id);
     return ok({});
   } catch (err) {

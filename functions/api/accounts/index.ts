@@ -25,6 +25,7 @@ export const onRequestGet = async (ctx: PagesContext): Promise<Response> => {
         createdAt: a.created_at,
         contestId: a.contest_id,
         contestName: a.contest_name,
+        contestStatus: a.contest_status,
         positionsCount: a.positions_count,
         totalDeposit: a.total_deposit,
         positionSymbols: a.position_symbols,

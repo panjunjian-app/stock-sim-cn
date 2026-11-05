@@ -149,6 +149,8 @@ export interface AccountInfo {
   /** 比赛账户标记（null=个人账户） */
   contestId?: number | null;
   contestName?: string | null;
+  /** 所属比赛状态：pending/active 赛期不可删；finished/cancelled（历史）可删 */
+  contestStatus?: string | null;
 }
 
 // ==================== 炒炒乐大比拼 ====================

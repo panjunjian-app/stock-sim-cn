@@ -10,10 +10,14 @@ export interface AccountCardProps {
   /** 该账户持仓相关标的的行情快照（市值/盈亏即时计算） */
   quotes: Record<StockSymbol, Quote>;
   onDelete: (account: AccountInfo) => void;
+  /** 是否显示删除按钮（默认 true；比赛账户赛期传入 false，结束后转历史可删） */
+  deletable?: boolean;
+  /** 已结束比赛账户的历史标识 */
+  historyBadge?: boolean;
 }
 
 /** AccountCard — 账户卡片：总资产 / 当日盈亏 / 累计收益率 / 持仓数 */
-export default function AccountCard({ account, quotes, onDelete }: AccountCardProps) {
+export default function AccountCard({ account, quotes, onDelete, deletable = true, historyBadge = false }: AccountCardProps) {
   const navigate = useNavigate();
 
   let marketValue = 0;
@@ -57,6 +61,21 @@ export default function AccountCard({ account, quotes, onDelete }: AccountCardPr
         >
           No.{account.id}
         </Box>
+        {historyBadge && (
+          <Box
+            sx={{
+              fontSize: 10,
+              color: MUJI.ink2,
+              border: `1px solid ${MUJI.line}`,
+              borderRadius: '2px',
+              px: 0.75,
+              py: '1px',
+              letterSpacing: '0.1em',
+            }}
+          >
+            🏁 已结束
+          </Box>
+        )}
       </Box>
       <Typography className="num" sx={{ fontSize: 23, fontWeight: 500, mt: 2, mb: 0.75 }}>
         {formatYuanSymbol(totalAsset)}
@@ -73,19 +92,21 @@ export default function AccountCard({ account, quotes, onDelete }: AccountCardPr
         <span>持仓</span>
         <span className="num" style={{ color: pnlColor(0, true) }}>{account.positionsCount} 只</span>
       </Box>
-      <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
-        <Button
-          size="small"
-          variant="text"
-          onClick={(e) => {
-            e.stopPropagation();
-            void onDelete(account);
-          }}
-          sx={{ fontSize: 11, color: MUJI.ink3, ml: 'auto' }}
-        >
-          删除
-        </Button>
-      </Box>
+      {deletable && (
+        <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
+          <Button
+            size="small"
+            variant="text"
+            onClick={(e) => {
+              e.stopPropagation();
+              void onDelete(account);
+            }}
+            sx={{ fontSize: 11, color: MUJI.ink3, ml: 'auto' }}
+          >
+            删除
+          </Button>
+        </Box>
+      )}
     </Box>
   );
 }

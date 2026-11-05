@@ -45,8 +45,8 @@ export default function AccountListPage() {
   const quotes: Record<StockSymbol, Quote> = polled ?? cachedQuotes;
 
   const handleDelete = async (account: AccountInfo) => {
-    if (account.contestId) {
-      window.alert('比赛账户不可删除（资金金额赛期锁定）');
+    if (account.contestId && account.contestStatus !== 'finished' && account.contestStatus !== 'cancelled') {
+      window.alert('比赛进行中，比赛账户不可删除（比赛结束后转入历史记录即可删除）');
       return;
     }
     if (!window.confirm(`确认删除账户「${account.name}」？虚拟资金与持仓将一并清除，不可恢复。`)) {
@@ -113,19 +113,29 @@ export default function AccountListPage() {
         </Box>
       )}
 
-      {/* 比赛账户（大比拼，赛期资金锁定） */}
+      {/* 比赛账户（大比拼）：赛期资金锁定不可删；已结束比赛账户转入历史记录后可删除 */}
       {contestAccounts.length > 0 && (
         <Box sx={{ mt: 4 }}>
           <Typography sx={{ fontSize: 18, fontWeight: 400, letterSpacing: '0.05em', mb: 2.75 }}>
             🏆 比赛账户
             <Typography component="small" sx={{ fontSize: 12, color: MUJI.ink3, fontWeight: 400, ml: 1.5, letterSpacing: '0.1em' }}>
-              赛期资金锁定 · 不可入金/删除
+              赛期资金锁定 · 不可入金 · 比赛结束后转入历史记录即可删除
             </Typography>
           </Typography>
           <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 2 }}>
-            {contestAccounts.map((a) => (
-              <AccountCard key={a.id} account={a} quotes={quotes} onDelete={(acc) => void handleDelete(acc)} />
-            ))}
+            {contestAccounts.map((a) => {
+              const isHistory = a.contestStatus === 'finished' || a.contestStatus === 'cancelled';
+              return (
+                <AccountCard
+                  key={a.id}
+                  account={a}
+                  quotes={quotes}
+                  deletable={isHistory}
+                  historyBadge={isHistory}
+                  onDelete={(acc) => void handleDelete(acc)}
+                />
+              );
+            })}
           </Box>
         </Box>
       )}
