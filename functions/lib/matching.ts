@@ -597,7 +597,9 @@ export async function applyTrade(repo: MatchRepo, order: OrderRow, fillPrice: Ce
           qty: oldQty + order.quantity,
           availableQty: pos?.available_qty ?? 0, // 当日买入不可卖；已有持仓次日日切解锁
           frozenQty: pos?.frozen_qty ?? 0,
-          avgCost: Math.round(((pos?.avg_cost ?? 0) * oldQty + buyNetAmount(amount, fees)) / (oldQty + order.quantity)),
+          // 摊薄成本保留万分位精度（SQLite NUMERIC 亲和可存 REAL）：
+          // 取整会导致 Σ(qty×avg_cost) 与净买入总额产生每股最多 0.5 分的累计偏差，账户级盈亏对不上账
+          avgCost: Number((((pos?.avg_cost ?? 0) * oldQty + buyNetAmount(amount, fees)) / (oldQty + order.quantity)).toFixed(4)),
           settledDate: pos?.settled_date ?? '',
         }
       : {

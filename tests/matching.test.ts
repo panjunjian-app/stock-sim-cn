@@ -329,8 +329,8 @@ describe('applyTrade 买成交结算', () => {
     expect(cash.cash_available).toBe(toCents('1000000') - actualCost);
     expect(cash.frozen_cash).toBe(0);
 
-    // 摊薄成本 = (0×0 + 成交额+费) / 200
-    expect(state.positions.get(`${ACCOUNT_ID}:sh600519`)?.avg_cost).toBe(Math.round(actualCost / 200));
+    // 摊薄成本 = (0×0 + 成交额+费) / 200，保留万分位精度（不取整）
+    expect(state.positions.get(`${ACCOUNT_ID}:sh600519`)?.avg_cost).toBe(Number((actualCost / 200).toFixed(4)));
     // T+1：当日买入 available 不增加
     expect(state.positions.get(`${ACCOUNT_ID}:sh600519`)?.available_qty).toBe(0);
     // 流水净额为负（流出）
