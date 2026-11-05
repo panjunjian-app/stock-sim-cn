@@ -10,9 +10,7 @@ export interface UserRow {
   password_hash: string;
   token_version: number;
   status: 'active' | 'banned';
-}
-
-interface Body {
+}interface Body {
   email?: string;
   password?: string;
 }
@@ -26,7 +24,10 @@ export const onRequestPost = async (ctx: PagesContext): Promise<Response> => {
     if (!checkEmail(email).ok || password.length === 0) {
       throw new ApiError(CODE.BAD_PARAM, '请输入邮箱与密码');
     }
-    const user = await ctx.env.DB.prepare('SELECT * FROM users WHERE email = ?1').bind(email).first<UserRow>();
+    const user = await ctx.env.DB
+      .prepare('SELECT id, email, password_hash, token_version, status, nickname, avatar FROM users WHERE email = ?1')
+      .bind(email)
+      .first<UserRow & { nickname: string; avatar: string }>();
     if (!user || !(await verifyPassword(password, user.password_hash))) {
       throw new ApiError(CODE.BAD_PARAM, '邮箱或密码不正确');
     }
@@ -34,7 +35,11 @@ export const onRequestPost = async (ctx: PagesContext): Promise<Response> => {
       throw new ApiError(CODE.TOKEN_INVALID, '账号已被禁用');
     }
     const token = await issueJwt(ctx.env, user);
-    return okWithCookie({ user: { id: user.id, email: user.email } }, token);
+    // 登录响应必须带全量资料（昵称/头像），否则前端 store 覆盖后右上角显示会「丢」
+    return okWithCookie(
+      { user: { id: user.id, email: user.email, nickname: user.nickname ?? '', avatar: user.avatar ?? '' } },
+      token,
+    );
   } catch (err) {
     return handleError(err);
   }

@@ -31,14 +31,22 @@ export const onRequestPost = async (ctx: PagesContext): Promise<Response> => {
 
     const nowIso = new Date().toISOString();
     const passwordHash = await hashPassword(password);
-    const result = await ctx.env.DB
+    const insertResult = await ctx.env.DB
       .prepare('INSERT INTO users (email, password_hash, token_version, status, created_at, updated_at) VALUES (?1, ?2, 0, ?3, ?4, ?4)')
       .bind(email, passwordHash, 'active', nowIso)
-      .run();
-    const userId = (result.meta?.row_id ?? result.meta?.last_row_id) as number;
+      .run()
+      .catch((e: Error) => {
+        // 并发注册竞态兜底：email UNIQUE 冲突时返回友好错误而非 500
+        if (String(e?.message ?? '').includes('UNIQUE')) {
+          throw new ApiError(CODE.EMAIL_TAKEN, '该邮箱已注册，请直接登录', 409);
+        }
+        throw e;
+      });
+    const userId = (insertResult.meta?.row_id ?? insertResult.meta?.last_row_id) as number;
 
     const token = await issueJwt(ctx.env, { id: userId, email, token_version: 0 });
-    return okWithCookie({ user: { id: userId, email } }, token);
+    // 响应带全量资料结构（新用户昵称/头像为空），与登录/me 保持一致，避免前端 store 字段缺失
+    return okWithCookie({ user: { id: userId, email, nickname: '', avatar: '' } }, token);
   } catch (err) {
     return handleError(err);
   }

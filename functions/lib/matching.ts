@@ -99,6 +99,42 @@ export interface MatchRepo {
   }): Promise<void>;
   insertTrade(t: Omit<TradeRow, 'id'>): Promise<number>;
   insertCashFlow(f: CashFlowInsert): Promise<void>;
+  /**
+   * 原子成交结算（持久层安全）：成交记录 + 持仓 + 资金 + 流水 在同一事务内
+   * （D1 batch 隐式事务：全部成功或全部回滚，杜绝「订单已成交但资金/持仓没更新」的错乱）。
+   * 返回生成的 tradeId。流水 ref_id 用委托 id（trade 表自身有 order_id 关联，可追溯）。
+   */
+  settleTradeAtomic(payload: {
+    trade: Omit<TradeRow, 'id'>;
+    position: {
+      accountId: number;
+      symbol: StockSymbol;
+      symbolName: string;
+      qty: number;
+      availableQty: number;
+      frozenQty: number;
+      avgCost: number;
+      settledDate: string;
+    };
+    accountId: number;
+    cashDelta: number;
+    frozenDelta: number;
+    cashFlow: CashFlowInsert;
+  }): Promise<number>;
+  /** 原子卖单冻结：冻结持仓 + 落委托单同一事务，返回 orderId（防止「股被冻住但单没立上」） */
+  freezeSellAtomic(
+    position: {
+      accountId: number;
+      symbol: StockSymbol;
+      symbolName: string;
+      qty: number;
+      availableQty: number;
+      frozenQty: number;
+      avgCost: number;
+      settledDate: string;
+    },
+    order: Omit<OrderRow, 'id'>,
+  ): Promise<number>;
   /** 当日（北京时间）该账户委托数（含废单），防刷用 */
   countOrdersToday(accountId: number, dayStartIso: string): Promise<number>;
   /** 日切候选：settled_date < today 的持仓（T+1 解锁） */
@@ -262,6 +298,84 @@ export function createD1Repo(db: D1Database): MatchRepo {
         )
         .bind(f.account_id, f.type, f.amount, f.balance_after, f.ref_id, f.remark, f.created_at)
         .run();
+    },
+    async settleTradeAtomic({ trade, position, accountId, cashDelta, frozenDelta, cashFlow }) {
+      // D1 batch = 隐式事务：任一语句失败全部回滚，资金/持仓/成交/流水永不错乱
+      const res = await db.batch([
+        db
+          .prepare(
+            `INSERT INTO trades
+               (account_id, order_id, user_id, symbol, symbol_name, side, price, quantity, amount,
+                fee_commission, fee_stamp, fee_transfer, net_amount, traded_at)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14)`,
+          )
+          .bind(
+            trade.account_id, trade.order_id, trade.user_id, trade.symbol, trade.symbol_name, trade.side,
+            trade.price, trade.quantity, trade.amount, trade.fee_commission, trade.fee_stamp,
+            trade.fee_transfer, trade.net_amount, trade.traded_at,
+          ),
+        db
+          .prepare(
+            `INSERT INTO positions (account_id, symbol, symbol_name, qty, available_qty, frozen_qty, avg_cost, settled_date, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+             ON CONFLICT (account_id, symbol) DO UPDATE SET
+               symbol_name = excluded.symbol_name,
+               qty = excluded.qty,
+               available_qty = excluded.available_qty,
+               frozen_qty = excluded.frozen_qty,
+               avg_cost = excluded.avg_cost,
+               settled_date = excluded.settled_date,
+               updated_at = excluded.updated_at`,
+          )
+          .bind(
+            position.accountId, position.symbol, position.symbolName, position.qty, position.availableQty,
+            position.frozenQty, position.avgCost, position.settledDate, nowIso(),
+          ),
+        db
+          .prepare('UPDATE trade_accounts SET cash_available = cash_available + ?2, frozen_cash = frozen_cash + ?3 WHERE id = ?1')
+          .bind(accountId, cashDelta, frozenDelta),
+        db
+          .prepare(
+            `INSERT INTO cash_flows (account_id, type, amount, balance_after, ref_id, remark, created_at)
+             VALUES (?1,?2,?3,?4,?5,?6,?7)`,
+          )
+          .bind(cashFlow.account_id, cashFlow.type, cashFlow.amount, cashFlow.balance_after, cashFlow.ref_id, cashFlow.remark, cashFlow.created_at),
+      ]);
+      return (res[0]?.meta?.row_id ?? res[0]?.meta?.last_row_id) as number;
+    },
+    async freezeSellAtomic(position, order) {
+      const res = await db.batch([
+        db
+          .prepare(
+            `INSERT INTO positions (account_id, symbol, symbol_name, qty, available_qty, frozen_qty, avg_cost, settled_date, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+             ON CONFLICT (account_id, symbol) DO UPDATE SET
+               symbol_name = excluded.symbol_name,
+               qty = excluded.qty,
+               available_qty = excluded.available_qty,
+               frozen_qty = excluded.frozen_qty,
+               avg_cost = excluded.avg_cost,
+               settled_date = excluded.settled_date,
+               updated_at = excluded.updated_at`,
+          )
+          .bind(
+            position.accountId, position.symbol, position.symbolName, position.qty, position.availableQty,
+            position.frozenQty, position.avgCost, position.settledDate, nowIso(),
+          ),
+        db
+          .prepare(
+            `INSERT INTO orders
+               (account_id, user_id, symbol, symbol_name, side, order_type, price, quantity,
+                frozen_cash, filled_qty, avg_price, status, reject_reason, last_check_at, created_at, updated_at)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?15)`,
+          )
+          .bind(
+            order.account_id, order.user_id, order.symbol, order.symbol_name, order.side, order.order_type,
+            order.price, order.quantity, order.frozen_cash, order.filled_qty, order.avg_price,
+            order.status, order.reject_reason, order.last_check_at, order.created_at,
+          ),
+      ]);
+      return (res[1]?.meta?.row_id ?? res[1]?.meta?.last_row_id) as number;
     },
     async countOrdersToday(accountId, dayStartIso) {
       const r = await db
@@ -452,62 +566,10 @@ export async function applyTrade(repo: MatchRepo, order: OrderRow, fillPrice: Ce
     throw new MatchError(3007, '委托状态已变更，无法重复成交');
   }
 
-  // 1. 成交单（净额：买为负流出、卖为正流入）
-  const netAmount = order.side === 'buy' ? -buyNetAmount(amount, fees) : sellNetAmount(amount, fees);
-  const tradeId = await repo.insertTrade({
-    account_id: order.account_id,
-    order_id: order.id,
-    user_id: order.user_id,
-    symbol: order.symbol,
-    symbol_name: order.symbol_name,
-    side: order.side,
-    price: fillPrice,
-    quantity: order.quantity,
-    amount,
-    fee_commission: fees.commission,
-    fee_stamp: fees.stamp,
-    fee_transfer: fees.transfer,
-    net_amount: netAmount,
-    traded_at: nowIso,
-  });
-
-  // 2. 委托完结（已在乐观锁占位时完成）
-
-  // 3. 持仓更新（T+1：买入当日不可卖；成本摊薄含费用）
   const pos = await repo.getPosition(order.account_id, order.symbol);
-  if (order.side === 'buy') {
-    const oldQty = pos?.qty ?? 0;
-    const oldCostTotal = (pos?.avg_cost ?? 0) * oldQty;
-    const newCostTotal = oldCostTotal + buyNetAmount(amount, fees);
-    const newQty = oldQty + order.quantity;
-    const settled = pos?.settled_date ?? '';
-    // 当日买入的部分不可卖；已有持仓保持原可卖数（次日日切解锁）
-    const oldAvailable = pos?.available_qty ?? 0;
-    await repo.upsertPosition({
-      accountId: order.account_id,
-      symbol: order.symbol,
-      symbolName: order.symbol_name,
-      qty: newQty,
-      availableQty: oldAvailable,
-      frozenQty: pos?.frozen_qty ?? 0,
-      avgCost: Math.round(newCostTotal / newQty),
-      settledDate: settled,
-    });
-  } else {
-    const oldQty = pos?.qty ?? 0;
-    await repo.upsertPosition({
-      accountId: order.account_id,
-      symbol: order.symbol,
-      symbolName: order.symbol_name,
-      qty: oldQty - order.quantity,
-      availableQty: Math.max((pos?.available_qty ?? 0) - order.quantity, 0),
-      frozenQty: Math.max((pos?.frozen_qty ?? 0) - order.quantity, 0),
-      avgCost: pos?.avg_cost ?? 0,
-      settledDate: pos?.settled_date ?? '',
-    });
-  }
 
-  // 4. 资金结算（多退少补，增量原子更新）+ 流水
+  // 1~4. 原子结算：成交记录 + 持仓 + 资金 + 流水 同一事务（任一步失败全部回滚，杜绝错乱）
+  const netAmount = order.side === 'buy' ? -buyNetAmount(amount, fees) : sellNetAmount(amount, fees);
   const remark =
     order.side === 'buy'
       ? `买入 ${order.symbol_name} ${order.quantity}股 @${(fillPrice / 100).toFixed(2)} 佣金${(fees.commission / 100).toFixed(2)} 过户费${(fees.transfer / 100).toFixed(2)}`
@@ -523,16 +585,62 @@ export async function applyTrade(repo: MatchRepo, order: OrderRow, fillPrice: Ce
   } else {
     cashDelta = sellNetAmount(amount, fees);
   }
-  await repo.adjustCash(order.account_id, cashDelta, frozenDelta);
-  const balanceAfter = acc.cash_available + cashDelta;
-  await repo.insertCashFlow({
-    account_id: order.account_id,
-    type: order.side,
-    amount: netAmount,
-    balance_after: balanceAfter,
-    ref_id: tradeId,
-    remark,
-    created_at: nowIso,
+
+  // 持仓目标值（T+1：买入当日不可卖；成本摊薄含费用）
+  const oldQty = pos?.qty ?? 0;
+  const positionPayload =
+    order.side === 'buy'
+      ? {
+          accountId: order.account_id,
+          symbol: order.symbol,
+          symbolName: order.symbol_name,
+          qty: oldQty + order.quantity,
+          availableQty: pos?.available_qty ?? 0, // 当日买入不可卖；已有持仓次日日切解锁
+          frozenQty: pos?.frozen_qty ?? 0,
+          avgCost: Math.round(((pos?.avg_cost ?? 0) * oldQty + buyNetAmount(amount, fees)) / (oldQty + order.quantity)),
+          settledDate: pos?.settled_date ?? '',
+        }
+      : {
+          accountId: order.account_id,
+          symbol: order.symbol,
+          symbolName: order.symbol_name,
+          qty: oldQty - order.quantity,
+          availableQty: Math.max((pos?.available_qty ?? 0) - order.quantity, 0),
+          frozenQty: Math.max((pos?.frozen_qty ?? 0) - order.quantity, 0),
+          avgCost: pos?.avg_cost ?? 0,
+          settledDate: pos?.settled_date ?? '',
+        };
+
+  const tradeId = await repo.settleTradeAtomic({
+    trade: {
+      account_id: order.account_id,
+      order_id: order.id,
+      user_id: order.user_id,
+      symbol: order.symbol,
+      symbol_name: order.symbol_name,
+      side: order.side,
+      price: fillPrice,
+      quantity: order.quantity,
+      amount,
+      fee_commission: fees.commission,
+      fee_stamp: fees.stamp,
+      fee_transfer: fees.transfer,
+      net_amount: netAmount,
+      traded_at: nowIso,
+    },
+    position: positionPayload,
+    accountId: order.account_id,
+    cashDelta,
+    frozenDelta,
+    cashFlow: {
+      account_id: order.account_id,
+      type: order.side,
+      amount: netAmount,
+      balance_after: acc.cash_available + cashDelta,
+      ref_id: order.id, // 关联委托（trade 表自带 order_id 双向可追溯）
+      remark,
+      created_at: nowIso,
+    },
   });
 
   const trade = await (repo as MatchRepo & { getTrade?: (id: number) => Promise<TradeRow | null> }).getTrade?.(tradeId);
@@ -646,17 +754,20 @@ export async function submitOrder(
     const id = await repo.insertOrder(rejRow);
     return { order: { ...rejRow, id } as OrderRow, matched: false };
   }
-  await repo.upsertPosition({
-    accountId: input.accountId,
-    symbol: input.symbol,
-    symbolName: pos.symbol_name,
-    qty: pos.qty,
-    availableQty: pos.available_qty,
-    frozenQty: pos.frozen_qty + input.quantity,
-    avgCost: pos.avg_cost,
-    settledDate: pos.settled_date,
-  });
-  const id = await repo.insertOrder(baseRow);
+  // 原子：冻结持仓 + 落委托单同一事务（防「股被冻住但单没立上」）
+  const id = await repo.freezeSellAtomic(
+    {
+      accountId: input.accountId,
+      symbol: input.symbol,
+      symbolName: pos.symbol_name,
+      qty: pos.qty,
+      availableQty: pos.available_qty,
+      frozenQty: pos.frozen_qty + input.quantity,
+      avgCost: pos.avg_cost,
+      settledDate: pos.settled_date,
+    },
+    baseRow,
+  );
   const order = await repo.getOrder(id);
   const r = await tryMatch(repo, market, order as OrderRow);
   return { order: (await repo.getOrder(id)) as OrderRow, matched: r.matched, trade: r.trade };

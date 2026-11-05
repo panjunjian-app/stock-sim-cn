@@ -13,6 +13,7 @@ const BANNER = '⚠️ 模拟盘 · 虚拟资金 · 与真实财产无关 · 仅
 export default function LoginPage() {
   const navigate = useNavigate();
   const setUser = useAuthStore((s) => s.setUser);
+  const fetchMe = useAuthStore((s) => s.fetchMe);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -24,6 +25,10 @@ export default function LoginPage() {
     try {
       const { user } = await authApi.login(email.trim().toLowerCase(), password);
       setUser(user);
+      // 兜底：若登录响应缺昵称/头像字段，异步补拉全量资料（不影响跳转）
+      if (user.nickname === undefined || user.avatar === undefined) {
+        void fetchMe();
+      }
       navigate('/accounts', { replace: true });
     } catch (e) {
       setError(e instanceof ApiError ? e.message : '登录失败，请稍后重试');

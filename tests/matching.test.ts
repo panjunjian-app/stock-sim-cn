@@ -109,6 +109,44 @@ function makeRepo(state: MockState): MatchRepo {
     async insertCashFlow(f) {
       state.cashFlows.push({ account_id: f.account_id, type: f.type, amount: f.amount, balance_after: f.balance_after });
     },
+    async settleTradeAtomic({ trade, position, accountId, cashDelta, frozenDelta, cashFlow }) {
+      // 内存实现：顺序执行等价（测试无并发场景）
+      const id = state.nextTradeId++;
+      state.trades.push({ ...trade, id });
+      state.positions.set(posKey(position.accountId, position.symbol), {
+        symbol_name: position.symbolName,
+        qty: position.qty,
+        available_qty: position.availableQty,
+        frozen_qty: position.frozenQty,
+        avg_cost: position.avgCost,
+        settled_date: position.settledDate,
+      });
+      const c = state.cash.get(accountId);
+      if (c) {
+        c.cash_available += cashDelta;
+        c.frozen_cash += frozenDelta;
+      }
+      state.cashFlows.push({
+        account_id: cashFlow.account_id,
+        type: cashFlow.type,
+        amount: cashFlow.amount,
+        balance_after: cashFlow.balance_after,
+      });
+      return id;
+    },
+    async freezeSellAtomic(position, order) {
+      state.positions.set(posKey(position.accountId, position.symbol), {
+        symbol_name: position.symbolName,
+        qty: position.qty,
+        available_qty: position.availableQty,
+        frozen_qty: position.frozenQty,
+        avg_cost: position.avgCost,
+        settled_date: position.settledDate,
+      });
+      const id = state.nextOrderId++;
+      state.orders.set(id, { ...order, id });
+      return id;
+    },
     async countOrdersToday() {
       return state.orders.size;
     },

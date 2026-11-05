@@ -51,6 +51,7 @@ function StrengthBar({ pw }: { pw: string }) {
 export default function RegisterPage() {
   const navigate = useNavigate();
   const setUser = useAuthStore((s) => s.setUser);
+  const fetchMe = useAuthStore((s) => s.fetchMe);
   const [step, setStep] = useState(0);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -72,6 +73,10 @@ export default function RegisterPage() {
     try {
       const { user } = await authApi.register(email.trim().toLowerCase(), password);
       setUser(user);
+      // 兜底：若注册响应缺昵称/头像字段，异步补拉全量资料（不影响跳转）
+      if (user.nickname === undefined || user.avatar === undefined) {
+        void fetchMe();
+      }
       navigate('/accounts', { replace: true });
     } catch (e) {
       setError(e instanceof ApiError ? e.message : '注册失败，请稍后重试');
