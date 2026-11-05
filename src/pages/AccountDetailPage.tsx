@@ -114,6 +114,13 @@ export default function AccountDetailPage() {
 
   return (
     <Box sx={{ flex: 1, px: 6.5, pt: 3, overflowY: 'auto' }}>
+      {/* 返回账户列表 */}
+      <Box
+        onClick={() => navigate('/accounts')}
+        sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, cursor: 'pointer', mb: 1, px: 1, py: 0.5, borderRadius: '3px', '&:hover': { bgcolor: MUJI.paper2 } }}
+      >
+        <Typography sx={{ fontSize: 13, color: MUJI.red, letterSpacing: '0.05em' }}>← 返回账户列表</Typography>
+      </Box>
       <Typography sx={{ fontSize: 12, color: MUJI.ink3, mb: 2, letterSpacing: '0.1em' }}>
         我的账户 / <b style={{ fontWeight: 400, color: MUJI.ink }}>{overview.name}</b>（账户 No.{overview.accountId}）
       </Typography>
