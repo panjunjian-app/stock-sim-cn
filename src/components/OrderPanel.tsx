@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Box, MenuItem, TextField, Typography, Button } from '@mui/material';
+import { Box, Button, Dialog, DialogActions, DialogContent, MenuItem, TextField, Typography } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import type { AccountInfo, OrderInput, Position, Quote, Side } from '../../shared/types';
 import { calcBuyFreeze, calcFees } from '../../shared/fees';
 import { formatYuan, formatYuanSymbol, toCents } from '../../shared/money';
@@ -40,6 +41,7 @@ export default function OrderPanel({
   onSubmit,
 }: OrderPanelProps) {
   const { isOpen } = useTradingTime();
+  const navigate = useNavigate();
   const [side, setSide] = useState<Side>('buy');
   const [orderType, setOrderType] = useState<'limit' | 'market'>('limit');
   const [priceYuan, setPriceYuan] = useState('');
@@ -47,6 +49,14 @@ export default function OrderPanel({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null);
+  /** 下单结果弹框：提示到对应账户查看交易状态详情 */
+  const [resultInfo, setResultInfo] = useState<{
+    ok: boolean;
+    title: string;
+    detail: string;
+    accountId: number | null;
+    accountName: string;
+  } | null>(null);
 
   const isBuy = side === 'buy';
   const accent = isBuy ? MUJI.up : MUJI.down;
@@ -124,8 +134,27 @@ export default function OrderPanel({
         quantity: qty,
       });
       setConfirmOpen(false);
-      setFeedback(err ? { ok: false, text: err } : { ok: true, text: '委托已提交，成交结果见账户详情页' });
-      if (!err) {
+      const acct = accounts.find((a) => a.id === selectedAccountId);
+      const acctLabel = acct ? `${acct.contestId ? '🏁 ' : ''}${acct.contestId ? acct.contestName || acct.name : acct.name}` : '当前账户';
+      if (err) {
+        // 废单（资金不足/涨跌停越界等）也弹框引导查看账户
+        setFeedback({ ok: false, text: err });
+        setResultInfo({
+          ok: false,
+          title: '委托未能提交',
+          detail: err,
+          accountId: selectedAccountId,
+          accountName: acctLabel,
+        });
+      } else {
+        setFeedback({ ok: true, text: '委托已提交' });
+        setResultInfo({
+          ok: true,
+          title: '委托已提交',
+          detail: isBuy ? '买入委托已受理，成交或等待触发的状态可在账户中查看' : '卖出委托已受理，成交或等待触发的状态可在账户中查看',
+          accountId: selectedAccountId,
+          accountName: acctLabel,
+        });
         setQtyText('');
       }
     } finally {
@@ -305,6 +334,53 @@ export default function OrderPanel({
         onCancel={() => setConfirmOpen(false)}
         onConfirm={() => void confirm()}
       />
+
+      {/* 下单结果弹框：引导到对应账户查看交易状态详情 */}
+      <Dialog
+        open={resultInfo !== null}
+        onClose={() => setResultInfo(null)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: '6px' } }}
+      >
+        <DialogContent sx={{ pt: 3.5, pb: 1 }}>
+          <Box sx={{ textAlign: 'center', mb: 2 }}>
+            <Typography sx={{ fontSize: 30, mb: 1 }}>{resultInfo?.ok ? '✅' : '⚠️'}</Typography>
+            <Typography sx={{ fontSize: 16, fontWeight: 500, color: MUJI.ink }}>{resultInfo?.title}</Typography>
+          </Box>
+          <Typography sx={{ fontSize: 13, color: MUJI.ink2, lineHeight: 1.9, textAlign: 'center' }}>
+            {resultInfo?.detail}
+          </Typography>
+          <Box sx={{ bgcolor: MUJI.paper2, borderRadius: '4px', p: 1.75, mt: 2.25 }}>
+            <Typography sx={{ fontSize: 12, color: MUJI.ink3, lineHeight: 1.9 }}>
+              交易账户：<b style={{ color: MUJI.ink, fontWeight: 500 }}>{resultInfo?.accountName}</b>
+              <br />
+              前往该账户可查看委托状态、成交明细、持仓与资金流水。
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1.25 }}>
+          <Button
+            variant="outlined"
+            sx={{ flex: 1, color: MUJI.ink2, borderColor: MUJI.line, fontSize: 13.5 }}
+            onClick={() => setResultInfo(null)}
+          >
+            继续交易
+          </Button>
+          <Button
+            variant="contained"
+            sx={{ flex: 1, bgcolor: MUJI.red, '&:hover': { bgcolor: MUJI.red }, fontSize: 13.5 }}
+            disabled={!resultInfo?.accountId}
+            onClick={() => {
+              const id = resultInfo?.accountId;
+              setResultInfo(null);
+              if (id) navigate(`/accounts/${id}`);
+            }}
+          >
+            查看交易详情
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

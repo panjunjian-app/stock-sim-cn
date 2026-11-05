@@ -11,6 +11,7 @@ import {
   CONTEST_INIT_MIN, CONTEST_INIT_MAX, CONTEST_DURATIONS, CONTEST_MAX_OCCUPIED, CONTEST_MAX_PARTICIPANTS,
   type ContestRow,
 } from '../../lib/contest';
+import { settleIdleFees } from '../../lib/idle-fee';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -46,6 +47,14 @@ export const onRequestGet = async (ctx: PagesContext): Promise<Response> => {
   try {
     const auth = await requireAuth(ctx);
     await finishDueContests(ctx.env.DB); // 懒结算到期比赛
+
+    // 游手好闲费懒结算：active 比赛逐场检查（收市后当日无买卖成交扣初始资金 1%，幂等）
+    const activeRows = await ctx.env.DB
+      .prepare("SELECT id, init_cash, start_date FROM contests WHERE status = 'active'")
+      .all<{ id: number; init_cash: number; start_date: string | null }>();
+    for (const c of activeRows.results ?? []) {
+      await settleIdleFees(ctx.env.DB, c);
+    }
 
     const myContests = await ctx.env.DB
       .prepare(

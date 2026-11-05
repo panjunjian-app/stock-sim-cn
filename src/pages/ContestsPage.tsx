@@ -65,6 +65,14 @@ export default function ContestsPage() {
         </Button>
       </Box>
 
+      {/* 比赛规则（防坐赢：游手好闲费） */}
+      <Box sx={{ bgcolor: MUJI.card, border: `1px dashed ${MUJI.line}`, borderRadius: '4px', px: 2.25, py: 1.5, mb: 2.5 }}>
+        <Typography sx={{ fontSize: 12.5, color: MUJI.ink2, lineHeight: 2, letterSpacing: '0.03em' }}>
+          📜 比赛规则：进行中比赛每个交易日收市后检查各参赛账户，<b style={{ fontWeight: 500 }}>当日无任何买卖成交的账户，将收取「游手好闲费」＝ 初始资金 × 1%</b>
+          （费用记入该账户资金流水，现金不足按可用实扣）；当日有过买卖成交即免收。拒绝躺赢，动起来！
+        </Typography>
+      </Box>
+
       {loading && contests.length === 0 ? (
         <Typography sx={{ fontSize: 13, color: MUJI.ink3, py: 8, textAlign: 'center' }}>比赛数据加载中…</Typography>
       ) : error && contests.length === 0 ? (

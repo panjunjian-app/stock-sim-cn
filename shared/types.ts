@@ -213,7 +213,7 @@ export interface Trade {
 /** 资金流水 DTO */
 export interface CashFlow {
   id: number;
-  type: 'deposit' | 'buy' | 'sell';
+  type: 'deposit' | 'buy' | 'sell' | 'penalty';
   amount: Cents;
   balanceAfter: Cents;
   refId: number | null;

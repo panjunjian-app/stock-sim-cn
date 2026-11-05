@@ -129,3 +129,22 @@ export function nextOpenTime(ts: number = Date.now()): Date {
   void startKey;
   return new Date(beijingToTs(beijingDateKey(ts + 24 * 60 * 60 * 1000), '09:30'));
 }
+
+/**
+ * 枚举 [startKey, endKey] 闭区间内的交易日（北京时间日期，升序）。
+ * 用于游手好闲费等「按交易日批量结算」场景；区间最长 400 个自然日防失控。
+ */
+export function tradingDaysBetween(startKey: string, endKey: string): string[] {
+  const out: string[] = [];
+  const [sy, sm, sd] = startKey.split('-').map((x) => parseInt(x, 10));
+  let ts = Date.UTC(sy, sm - 1, sd, 4); // 北京 12:00 对齐（UTC+8 → UTC 04:00）
+  const [ey, em, ed] = endKey.split('-').map((x) => parseInt(x, 10));
+  const endTs = Date.UTC(ey, em - 1, ed, 4);
+  for (let i = 0; i < 400 && ts <= endTs; i++, ts += 24 * 60 * 60 * 1000) {
+    const key = beijingDateKey(ts);
+    if (isTradingDay(key)) {
+      out.push(key);
+    }
+  }
+  return out;
+}

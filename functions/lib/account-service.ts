@@ -36,7 +36,7 @@ export interface PositionRow {
 export interface CashFlowRow {
   id: number;
   account_id: number;
-  type: 'deposit' | 'buy' | 'sell';
+  type: 'deposit' | 'buy' | 'sell' | 'penalty';
   amount: number;
   balance_after: number;
   ref_id: number | null;

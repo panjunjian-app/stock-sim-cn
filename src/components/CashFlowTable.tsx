@@ -11,6 +11,7 @@ const TYPE_TEXT: Record<CashFlow['type'], string> = {
   deposit: '入金',
   buy: '买入',
   sell: '卖出',
+  penalty: '游手好闲费',
 };
 
 const HEADERS = ['时间', '类型', '金额（元）', '变动后可用', '备注'];
