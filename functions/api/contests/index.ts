@@ -77,7 +77,7 @@ export const onRequestGet = async (ctx: PagesContext): Promise<Response> => {
     const myContests = await ctx.env.DB
       .prepare(
         `SELECT c.*, p.user_id AS joined FROM contests c JOIN contest_participants p ON p.contest_id = c.id
-         WHERE p.user_id = ?1 AND c.status IN ('active', 'finished', 'pending') ORDER BY c.id DESC LIMIT 30`
+         WHERE p.user_id = ?1 AND c.status IN ('active', 'finished', 'pending', 'cancelled') ORDER BY c.id DESC LIMIT 30`
       )
       .bind(auth.userId)
       .all<ContestRow & { joined: number }>();

@@ -5,6 +5,7 @@ import { Box, Button, Menu, MenuItem, Typography } from '@mui/material';
 import { MUJI } from '../theme/muji-theme';
 import DisclaimerBanner from '../components/DisclaimerBanner';
 import AccountSettingsDialog from '../components/AccountSettingsDialog';
+import MessageBell from '../components/MessageBell';
 import { useAuthStore } from '../store/auth-store';
 import { authApi } from '../services/auth-api';
 import { useSnapshotHeartbeat } from '../hooks/use-snapshot-heartbeat';
@@ -113,6 +114,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
         </Box>
         {user && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <MessageBell />
             <Box
               onClick={(e) => setAnchorEl(e.currentTarget)}
               sx={{ display: 'flex', alignItems: 'center', gap: 1.5, cursor: 'pointer', borderRadius: '4px', px: 0.75, py: 0.5, '&:hover': { bgcolor: MUJI.paper } }}

@@ -42,10 +42,33 @@ export const contestApi = {
   create(body: { name: string; initCash: number; durationMonths: number; inviteEmails: string[] }): Promise<{ contestId: number; invited: string[] }> {
     return apiPost('/api/contests', body);
   },
+  cancel(contestId: number): Promise<{ contestId: number; cancelled: boolean; notified: number }> {
+    return apiPost('/api/contests/cancel', { contestId });
+  },
   invitations(): Promise<{ invitations: ContestInvitation[] }> {
     return apiGet('/api/contests/invitations');
   },
   respond(contestId: number, accept: boolean): Promise<{ result: string; contestStatus: string }> {
     return apiPost('/api/contests/respond', { contestId, accept });
+  },
+};
+
+/** 站内系统消息（比赛取消等事件通知） */
+export interface SystemMessage {
+  id: number;
+  type: string;
+  title: string;
+  body: string;
+  refId: number | null;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export const messageApi = {
+  list(): Promise<{ messages: SystemMessage[]; unread: number }> {
+    return apiGet('/api/messages');
+  },
+  markRead(ids?: number[]): Promise<{ unread: number }> {
+    return apiPost('/api/messages/read', ids && ids.length > 0 ? { ids } : { all: true });
   },
 };

@@ -1,16 +1,20 @@
 /**
  * ContestsPage — 炒炒乐大比拼
  * 发起挑战 + 邀请收件箱 + 进行中/历史比赛排行榜（每人进行中比赛 ≤3 → 图表 ≤3）。
+ * 待确认比赛发起满 24 小时未全员确认，发起人可取消（推送系统消息给已确认用户）。
  * 30s 自动刷新排行（行情随轮询更新）。
  */
 import { useCallback, useEffect, useState } from 'react';
-import { Badge, Box, Button, Typography } from '@mui/material';
+import { Badge, Box, Button, Dialog, DialogActions, DialogContent, DialogContentText, Typography } from '@mui/material';
 import { contestApi } from '../services/contest-api';
 import type { ContestInfo } from '../../shared/types';
+import { useAuthStore } from '../store/auth-store';
 import { MUJI } from '../theme/muji-theme';
 import InviteDialog from '../components/contest/InviteDialog';
 import InvitationsDialog from '../components/contest/InvitationsDialog';
 import ContestRankingChart from '../components/contest/ContestRankingChart';
+
+const CANCEL_AFTER_MS = 24 * 60 * 60 * 1000;
 
 export default function ContestsPage() {
   const [contests, setContests] = useState<ContestInfo[]>([]);
@@ -19,6 +23,10 @@ export default function ContestsPage() {
   const [error, setError] = useState<string | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inboxOpen, setInboxOpen] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<ContestInfo | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const user = useAuthStore((s) => s.user);
 
   const load = useCallback(async () => {
     try {
@@ -42,6 +50,28 @@ export default function ContestsPage() {
   const active = contests.filter((c) => c.status === 'active');
   const pending = contests.filter((c) => c.status === 'pending');
   const finished = contests.filter((c) => c.status === 'finished');
+  const cancelled = contests.filter((c) => c.status === 'cancelled');
+
+  /** 发起人可取消：pending 且发起满 24 小时仍未全员确认 */
+  const canCancel = (c: ContestInfo): boolean =>
+    c.status === 'pending' && c.creator.userId === user?.id && Date.now() - new Date(c.createdAt).getTime() >= CANCEL_AFTER_MS;
+
+  const handleCancel = async () => {
+    if (!cancelTarget) {
+      return;
+    }
+    setCancelling(true);
+    try {
+      await contestApi.cancel(cancelTarget.id);
+      setNotice(`挑战「${cancelTarget.name}」已取消，已通知已确认参加的用户`);
+      setCancelTarget(null);
+      await load();
+    } catch {
+      setNotice('取消失败，请稍后重试');
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   return (
     <Box sx={{ flex: 1, overflowY: 'auto', minHeight: 0, px: 4, py: 2.5 }}>
@@ -113,6 +143,16 @@ export default function ContestsPage() {
                           );
                         })}
                       </Typography>
+                      {canCancel(c) && (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => setCancelTarget(c)}
+                          sx={{ fontSize: 12, color: MUJI.red, borderColor: MUJI.red, borderRadius: '3px', minWidth: 0, px: 1.5, flexShrink: 0, '&:hover': { borderColor: MUJI.red, bgcolor: 'rgba(192,86,74,0.04)' } }}
+                        >
+                          取消挑战
+                        </Button>
+                      )}
                     </Box>
                   );
                 })}
@@ -141,6 +181,22 @@ export default function ContestsPage() {
               </Box>
             </Box>
           )}
+
+          {cancelled.length > 0 && (
+            <Box>
+              <Typography sx={{ fontSize: 13.5, fontWeight: 500, color: MUJI.ink2, mb: 1 }}>🚫 已取消的挑战</Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {cancelled.map((c) => (
+                  <Box key={c.id} sx={{ bgcolor: MUJI.card, border: `1px solid ${MUJI.line}`, borderRadius: '4px', px: 2.25, py: 1.5, display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Typography sx={{ fontSize: 14, color: MUJI.ink3, fontWeight: 500, textDecoration: 'line-through' }}>{c.name}</Typography>
+                    <Typography sx={{ fontSize: 12, color: MUJI.ink3 }}>
+                      ❌ 已取消（24 小时内未获全员确认） ｜ 每人初始 ¥{(c.initCash / 100).toLocaleString('zh-CN')}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          )}
         </Box>
       )}
 
@@ -150,6 +206,37 @@ export default function ContestsPage() {
         onCreated={() => void load()}
       />
       <InvitationsDialog open={inboxOpen} onClose={() => setInboxOpen(false)} onChanged={() => void load()} />
+
+      {/* 操作结果提示 */}
+      <Dialog open={notice !== null} onClose={() => setNotice(null)}>
+        <DialogContent>
+          <DialogContentText sx={{ fontSize: 13.5 }}>{notice}</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setNotice(null)} sx={{ fontSize: 13, color: MUJI.red }}>
+            知道了
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* 取消挑战确认 */}
+      <Dialog open={cancelTarget !== null} onClose={() => (cancelling ? undefined : setCancelTarget(null))}>
+        <DialogContent>
+          <DialogContentText sx={{ fontSize: 13.5, lineHeight: 1.9 }}>
+            确定取消挑战「{cancelTarget?.name}」吗？
+            <br />
+            取消后比赛作废，已确认参加的用户将收到系统消息通知。此操作不可撤销。
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button disabled={cancelling} onClick={() => setCancelTarget(null)} sx={{ fontSize: 13, color: MUJI.ink2 }}>
+            再等等
+          </Button>
+          <Button disabled={cancelling} onClick={() => void handleCancel()} sx={{ fontSize: 13, color: MUJI.red }}>
+            {cancelling ? '取消中…' : '确认取消'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
