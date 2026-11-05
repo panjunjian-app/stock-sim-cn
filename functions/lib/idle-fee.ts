@@ -1,8 +1,8 @@
 /**
  * idle-fee.ts — 游手好闲费（大比拼防坐赢规则）
- * 规则：进行中比赛，参赛者比赛账户在某交易日收市时若「当日无任何买卖成交」，
- *       收市后扣除初始资金 × 1%（现金不足则按可用现金实扣，扣完为止）。
- *       当天有过买卖成交即免收当日费用。费用记录写入该账户资金流水（type='penalty'）。
+ * 规则：进行中比赛，参赛者比赛账户自开赛以来「从未有过任何买卖成交」，
+ *       则每个已收市交易日扣除初始资金 × 1%（现金不足则按可用现金实扣，扣完为止）；
+ *       一旦发生过买卖成交，该账户永久免收。费用记录写入该账户资金流水（type='penalty'）。
  * 实现：无 Cron，懒结算——访问大比拼列表时触发；remark 含扣费日期作幂等键，重复触发不重扣。
  */
 import { beijingDateKey, beijingToTs, isTradingDay, tradingDaysBetween } from '../../shared/trading-calendar';
@@ -32,7 +32,7 @@ export function lastSettledTradingDay(now: number = Date.now()): string | null {
 }
 
 /** remark 幂等键：每账户每交易日至多一条 */
-const feeRemark = (day: string) => `游手好闲费 ${day}（当日无买卖，扣初始资金1%）`;
+const feeRemark = (day: string) => `游手好闲费 ${day}（开赛以来无买卖，扣初始资金1%）`;
 
 /**
  * 对单场 active 比赛结算游手好闲费（幂等：已有扣费记录的交易日自动跳过）。
@@ -60,12 +60,14 @@ export async function settleIdleFees(db: PagesContext['env']['DB'], contest: Con
   }
 
   for (const accountId of accounts) {
-    // 该账户有买卖成交的北京日期集合（有成交的日子免扣）
+    // 「终身制」判定：该账户自开赛以来只要有过任何一笔买卖成交，即永久免收
     const td = await db
-      .prepare("SELECT DISTINCT date(traded_at, '+8 hours') AS d FROM trades WHERE account_id = ?1")
+      .prepare('SELECT COUNT(*) AS n FROM trades WHERE account_id = ?1')
       .bind(accountId)
-      .all<{ d: string }>();
-    const tradedDays = new Set((td.results ?? []).map((r) => r.d));
+      .first<{ n: number }>();
+    if ((td?.n ?? 0) > 0) {
+      continue;
+    }
 
     // 已扣过费的日期集合（remark 幂等）
     const cf = await db
@@ -75,7 +77,7 @@ export async function settleIdleFees(db: PagesContext['env']['DB'], contest: Con
     const chargedDays = new Set((cf.results ?? []).map((r) => r.remark.split(' ')[1]));
 
     for (const day of days) {
-      if (tradedDays.has(day) || chargedDays.has(day)) {
+      if (chargedDays.has(day)) {
         continue;
       }
       const remark = feeRemark(day);
