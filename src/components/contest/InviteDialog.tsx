@@ -1,10 +1,11 @@
 /**
  * InviteDialog — 发起挑战弹窗
  * 比赛名（1~30字）+ 每人初始资金（1万~1000万）+ 周期（1/3/6/12月）+ 邀请邮箱（1~2 个已注册用户）。
+ * 被邀请人输入支持好友下拉/关键词搜索：与我同场竞技过的用户自动进入好友列表。
  */
-import { useState } from 'react';
-import { Box, Button, Dialog, TextField, Typography } from '@mui/material';
-import { contestApi } from '../../services/contest-api';
+import { useEffect, useState } from 'react';
+import { Autocomplete, Box, Button, Dialog, TextField, Typography } from '@mui/material';
+import { contestApi, type Friend } from '../../services/contest-api';
 import { ApiError } from '../../services/http';
 import { MUJI } from '../../theme/muji-theme';
 import { toYuan } from '../../../shared/money';
@@ -22,15 +23,93 @@ const DURATIONS = [
   { value: 12, label: '1 年' },
 ];
 
+/** 好友搜索框：下拉选项显示「昵称（邮箱）」，按昵称或邮箱关键词过滤，也允许自由输入新邮箱 */
+function FriendEmailField({
+  label,
+  value,
+  onChange,
+  friends,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  friends: Friend[];
+}) {
+  return (
+    <Autocomplete
+      freeSolo
+      disablePortal
+      openOnFocus
+      options={friends}
+      getOptionLabel={(opt) => (typeof opt === 'string' ? opt : opt.email)}
+      filterOptions={(options, state) => {
+        const kw = state.inputValue.trim().toLowerCase();
+        if (!kw) return options;
+        return options.filter((f) => f.email.toLowerCase().includes(kw) || f.nickname.toLowerCase().includes(kw));
+      }}
+      inputValue={value}
+      onInputChange={(_, v) => onChange(v)}
+      onBlur={() => {
+        // 失焦时若选中的是完整好友项，回填其邮箱
+        const hit = friends.find((f) => f.nickname === value);
+        if (hit) onChange(hit.email);
+      }}
+      renderOption={(props, opt) => {
+        const f = opt as Friend;
+        return (
+          <Box component="li" {...props} key={f.id} sx={{ fontSize: 13 }}>
+            <Box sx={{ mr: 1.25, width: 24, height: 24, borderRadius: '50%', overflow: 'hidden', bgcolor: MUJI.paper2, border: `1px solid ${MUJI.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              {f.avatar ? (
+                <Box component="img" src={f.avatar} alt="" sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <Typography sx={{ fontSize: 11, color: MUJI.ink3 }}>{f.nickname.slice(0, 1).toUpperCase()}</Typography>
+              )}
+            </Box>
+            <Box>
+              {f.nickname}
+              {f.nickname !== f.email && (
+                <Typography component="span" sx={{ fontSize: 11.5, color: MUJI.ink3, ml: 1 }}>{f.email}</Typography>
+              )}
+            </Box>
+          </Box>
+        );
+      }}
+      renderInput={(params) => (
+        <TextField
+          {...params}
+          size="small"
+          fullWidth
+          placeholder={label}
+          sx={{ mb: 1.25, '& .MuiInputBase-input': { fontSize: 13.5 } }}
+        />
+      )}
+    />
+  );
+}
+
 export default function InviteDialog({ open, onClose, onCreated }: Props) {
   const [name, setName] = useState('');
   const [cash, setCash] = useState('100000');
   const [duration, setDuration] = useState<number>(1);
   const [email1, setEmail1] = useState('');
   const [email2, setEmail2] = useState('');
+  const [friends, setFriends] = useState<Friend[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [okMsg, setOkMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // 打开弹窗时拉取好友列表（同场竞技过的用户，静默失败不阻塞）
+  useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    contestApi
+      .friends()
+      .then((r) => alive && setFriends(r.friends))
+      .catch(() => alive && setFriends([]));
+    return () => {
+      alive = false;
+    };
+  }, [open]);
 
   const reset = () => {
     setName('');
@@ -105,9 +184,16 @@ export default function InviteDialog({ open, onClose, onCreated }: Props) {
           ))}
         </Box>
 
-        <Typography sx={{ fontSize: 12, color: MUJI.ink3, mb: 0.5 }}>被邀请人邮箱（1~2 位已注册用户）</Typography>
-        <TextField size="small" fullWidth placeholder="被邀请人邮箱 ①" value={email1} onChange={(e) => setEmail1(e.target.value)} sx={{ mb: 1.25, '& .MuiInputBase-input': { fontSize: 13.5 } }} />
-        <TextField size="small" fullWidth placeholder="被邀请人邮箱 ②（可选）" value={email2} onChange={(e) => setEmail2(e.target.value)} sx={{ mb: 2, '& .MuiInputBase-input': { fontSize: 13.5 } }} />
+        <Typography sx={{ fontSize: 12, color: MUJI.ink3, mb: 0.5 }}>
+          被邀请人邮箱（1~2 位已注册用户，可搜索好友）
+        </Typography>
+        <FriendEmailField label="被邀请人邮箱 ①（输入关键词搜好友）" value={email1} onChange={setEmail1} friends={friends} />
+        <FriendEmailField label="被邀请人邮箱 ②（可选，可搜好友）" value={email2} onChange={setEmail2} friends={friends} />
+        {friends.length === 0 && (
+          <Typography sx={{ fontSize: 11, color: MUJI.ink3, mt: -0.75, mb: 1.5 }}>
+            好友列表为空：与您同场竞技过的用户会自动出现在这里，也可以直接输入对方邮箱
+          </Typography>
+        )}
 
         {error && <Typography sx={{ fontSize: 12.5, color: MUJI.up, mb: 1.5 }}>{error}</Typography>}
         {okMsg && <Typography sx={{ fontSize: 12.5, color: MUJI.down, mb: 1.5 }}>{okMsg}</Typography>}

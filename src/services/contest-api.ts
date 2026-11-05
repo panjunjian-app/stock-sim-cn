@@ -24,9 +24,20 @@ export interface ContestListResult {
   pendingInvitations: number;
 }
 
+/** 好友：与我同场竞技过的用户 */
+export interface Friend {
+  id: number;
+  email: string;
+  nickname: string;
+  avatar: string;
+}
+
 export const contestApi = {
   list(): Promise<ContestListResult> {
     return apiGet('/api/contests');
+  },
+  friends(): Promise<{ friends: Friend[] }> {
+    return apiGet('/api/contests/friends');
   },
   create(body: { name: string; initCash: number; durationMonths: number; inviteEmails: string[] }): Promise<{ contestId: number; invited: string[] }> {
     return apiPost('/api/contests', body);
