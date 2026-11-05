@@ -45,6 +45,8 @@ interface AvatarLabelProps {
   y?: number | string;
   width?: number | string;
   index?: number;
+  /** Recharts 真实柱子矩形（x/y 是柱顶左上）——content 顶层 x/y 是 position=top 偏移后的标签锚点，不能用 */
+  viewBox?: { x: number; y: number; width: number; height: number };
 }
 
 interface AvatarDatum {
@@ -90,15 +92,16 @@ export default function ContestRankingChart({ contest }: Props) {
         ? `🏁 进行中 · ${contest.startDate ?? ''} ~ ${contest.endDate ?? ''}`
         : `🏆 已结束 · ${contest.startDate ?? ''} ~ ${contest.endDate ?? ''}`;
 
-  /** 柱顶头像渲染：头像中心恰好落在该柱顶边中央（半嵌柱内），白描边与柱色区分（通过 index 回查数据行，含头像/首字母/皇冠角标） */
+  /** 柱顶头像渲染：以 viewBox（真实柱子矩形）定位，头像中心恰落在该柱顶边中央（半嵌柱内） */
   const avatarLabel = (props: AvatarLabelProps): ReturnType<() => JSX.Element> => {
     const item: AvatarDatum | undefined = props.index !== undefined ? data[props.index] : undefined;
-    if (!item || props.x === undefined || props.y === undefined) {
+    const vb = props.viewBox;
+    if (!item || !vb) {
       return null as unknown as JSX.Element;
     }
-    const cx = (Number(props.x) + Number(props.width ?? 0)) / 2;
+    const cx = vb.x + vb.width / 2;
     const r = 13;
-    const cy = Number(props.y); // 头像中心 = 柱顶中央
+    const cy = vb.y; // 头像中心 = 柱顶中央
     const clipId = `av-${contest.id}-${item.userId}`;
     const initial = (item.nickname || '?').slice(0, 1).toUpperCase();
     return (

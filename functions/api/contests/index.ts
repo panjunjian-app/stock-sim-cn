@@ -11,7 +11,7 @@ import {
   CONTEST_INIT_MIN, CONTEST_INIT_MAX, CONTEST_DURATIONS, CONTEST_MAX_OCCUPIED, CONTEST_MAX_PARTICIPANTS,
   type ContestRow,
 } from '../../lib/contest';
-import { settleIdleFees } from '../../lib/idle-fee';
+import { settleIdleFees, lastSettledTradingDay } from '../../lib/idle-fee';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -22,20 +22,24 @@ interface ContestListItem {
   standings: Awaited<ReturnType<typeof contestStandings>>;
 }
 
-/** 当日冠军：最近一个已收市交易日快照中总资产最高的参赛者（快照为收市后总资产，含当日游手好闲费影响） */
+/** 当日冠军：最近一个「已收市」交易日快照中总资产最高的参赛者（盘中不显示当日，快照为收市后总资产，含当日游手好闲费影响） */
 async function dailyWinner(db: PagesContext['env']['DB'], contestId: number) {
+  const settledDay = lastSettledTradingDay(); // 今天过 15:00 → 今天；否则最近已收市交易日
+  if (!settledDay) {
+    return null;
+  }
   const r = await db
     .prepare(
       `SELECT p.user_id, s.date, s.total_assets, COALESCE(NULLIF(u.nickname, ''), u.email) AS nickname, u.avatar
        FROM contest_participants p
        JOIN daily_snapshots s ON s.account_id = p.account_id
        JOIN users u ON u.id = p.user_id
-       WHERE p.contest_id = ?1 AND p.invite_status = 'accepted' AND p.account_id IS NOT NULL
-         AND s.date = (SELECT MAX(date) FROM daily_snapshots WHERE account_id = p.account_id)
+       WHERE p.contest_id = ?1 AND p.invite_status = 'accepted' AND p.account_id IS NOT NULL AND s.date <= ?2
+         AND s.date = (SELECT MAX(date) FROM daily_snapshots WHERE account_id = p.account_id AND date <= ?2)
        ORDER BY s.total_assets DESC
        LIMIT 1`
     )
-    .bind(contestId as number)
+    .bind(contestId as number, settledDay)
     .first<{ user_id: number; date: string; total_assets: number; nickname: string; avatar: string }>();
   return r ? { userId: r.user_id, nickname: r.nickname, avatar: r.avatar ?? '', total: r.total_assets, date: r.date } : null;
 }
