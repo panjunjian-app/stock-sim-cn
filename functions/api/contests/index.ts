@@ -35,6 +35,7 @@ async function dailyWinner(db: PagesContext['env']['DB'], contestId: number) {
        ORDER BY s.total_assets DESC
        LIMIT 1`
     )
+    .bind(contestId as number)
     .first<{ user_id: number; date: string; total_assets: number; nickname: string; avatar: string }>();
   return r ? { userId: r.user_id, nickname: r.nickname, avatar: r.avatar ?? '', total: r.total_assets, date: r.date } : null;
 }
