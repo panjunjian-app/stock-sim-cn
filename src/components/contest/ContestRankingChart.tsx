@@ -90,7 +90,7 @@ export default function ContestRankingChart({ contest }: Props) {
         ? `🏁 进行中 · ${contest.startDate ?? ''} ~ ${contest.endDate ?? ''}`
         : `🏆 已结束 · ${contest.startDate ?? ''} ~ ${contest.endDate ?? ''}`;
 
-  /** 柱顶头像渲染（通过 index 回查数据行，含头像/首字母/皇冠角标） */
+  /** 柱顶头像渲染：头像中心恰好落在该柱顶边中央（半嵌柱内），白描边与柱色区分（通过 index 回查数据行，含头像/首字母/皇冠角标） */
   const avatarLabel = (props: AvatarLabelProps): ReturnType<() => JSX.Element> => {
     const item: AvatarDatum | undefined = props.index !== undefined ? data[props.index] : undefined;
     if (!item || props.x === undefined || props.y === undefined) {
@@ -98,7 +98,7 @@ export default function ContestRankingChart({ contest }: Props) {
     }
     const cx = (Number(props.x) + Number(props.width ?? 0)) / 2;
     const r = 13;
-    const cy = Math.max(r + 4, Number(props.y) - r - 6);
+    const cy = Number(props.y); // 头像中心 = 柱顶中央
     const clipId = `av-${contest.id}-${item.userId}`;
     const initial = (item.nickname || '?').slice(0, 1).toUpperCase();
     return (
@@ -106,6 +106,7 @@ export default function ContestRankingChart({ contest }: Props) {
         <clipPath id={clipId}>
           <circle cx={cx} cy={cy} r={r} />
         </clipPath>
+        <circle cx={cx} cy={cy} r={r + 2} fill="#ffffff" opacity={0.9} />
         <circle cx={cx} cy={cy} r={r} fill="#f5f2ec" stroke={item.color} strokeWidth={2} />
         {item.avatar ? (
           <image href={item.avatar} x={cx - r} y={cy - r} width={r * 2} height={r * 2} clipPath={`url(#${clipId})`} preserveAspectRatio="xMidYMid slice" />
@@ -137,8 +138,23 @@ export default function ContestRankingChart({ contest }: Props) {
           </Button>
         )}
       </Box>
+      {contest.status === 'active' && contest.dailyWinner && (
+        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, bgcolor: '#faf7f1', border: `1px solid ${MUJI.line}`, borderRadius: '3px', px: 1.25, py: 0.5, mb: 1 }}>
+          <Typography sx={{ fontSize: 12, color: MUJI.ink2 }}>🏆 当日冠军</Typography>
+          {contest.dailyWinner.avatar ? (
+            <Box component="img" src={contest.dailyWinner.avatar} sx={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover' }} />
+          ) : (
+            <Box sx={{ width: 18, height: 18, borderRadius: '50%', bgcolor: '#e8e2d6', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', color: MUJI.ink2 }}>
+              {contest.dailyWinner.nickname.slice(0, 1).toUpperCase()}
+            </Box>
+          )}
+          <Typography sx={{ fontSize: 12.5, fontWeight: 500, color: MUJI.ink }}>{contest.dailyWinner.nickname}</Typography>
+          <Typography sx={{ fontSize: 12, color: MUJI.red }}>{fmtCents(contest.dailyWinner.total)}</Typography>
+          <Typography sx={{ fontSize: 11, color: MUJI.ink3 }}>({contest.dailyWinner.date.slice(5)} 收市)</Typography>
+        </Box>
+      )}
       <ResponsiveContainer width="100%" height={230}>
-        <BarChart data={data} margin={{ top: 44, right: 16, left: 4, bottom: 0 }} barCategoryGap="28%">
+        <BarChart data={data} margin={{ top: 22, right: 16, left: 4, bottom: 0 }} barCategoryGap="28%">
           <CartesianGrid {...biGridProps} />
           <XAxis dataKey="name" {...biAxisProps} tick={{ fontSize: 12.5, fill: BI_COLORS.ink }} />
           {/* Y 轴必须从 0 起：['auto','auto'] 会以数据最小值为起点，资金接近时微小差异被放大成悬殊柱高 */}

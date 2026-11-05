@@ -1,7 +1,8 @@
 /**
  * idle-fee.ts — 游手好闲费（大比拼防坐赢规则）
  * 规则：进行中比赛，参赛者比赛账户自开赛以来「从未有过任何买卖成交」，
- *       则每个已收市交易日扣除初始资金 × 1%（现金不足则按可用现金实扣，扣完为止）；
+ *       则自开赛第二个已收市交易日起，每个已收市交易日扣除初始资金 × 1%
+ *       （开赛首个交易日豁免，给玩家建仓时间；现金不足则按可用现金实扣，扣完为止）；
  *       一旦发生过买卖成交，该账户永久免收。费用记录写入该账户资金流水（type='penalty'）。
  * 实现：无 Cron，懒结算——访问大比拼列表时触发；remark 含扣费日期作幂等键，重复触发不重扣。
  */
@@ -43,7 +44,8 @@ export async function settleIdleFees(db: PagesContext['env']['DB'], contest: Con
   if (!lastDay || !contest.start_date || contest.start_date > lastDay) {
     return; // 尚无已收市交易日，或比赛尚未开赛
   }
-  const days = tradingDaysBetween(contest.start_date, lastDay);
+  const allDays = tradingDaysBetween(contest.start_date, lastDay);
+  const days = allDays.slice(1); // 开赛首个交易日豁免（给玩家建仓时间），第二个已收市交易日起生效
   if (days.length === 0) {
     return;
   }

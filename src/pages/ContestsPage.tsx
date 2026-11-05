@@ -68,7 +68,7 @@ export default function ContestsPage() {
       {/* 比赛规则（防坐赢：游手好闲费） */}
       <Box sx={{ bgcolor: MUJI.card, border: `1px dashed ${MUJI.line}`, borderRadius: '4px', px: 2.25, py: 1.5, mb: 2.5 }}>
         <Typography sx={{ fontSize: 12.5, color: MUJI.ink2, lineHeight: 2, letterSpacing: '0.03em' }}>
-          📜 比赛规则：进行中比赛每个交易日收市后检查各参赛比赛账户，<b style={{ fontWeight: 500 }}>开赛以来从未有过买卖成交的账户，将收取「游手好闲费」＝ 初始资金 × 1%</b>
+          📜 比赛规则：进行中比赛每个交易日收市后检查各参赛比赛账户，<b style={{ fontWeight: 500 }}>开赛首个交易日豁免，自第二个交易日起，开赛以来从未有过买卖成交的账户将收取「游手好闲费」＝ 初始资金 × 1%</b>
           （费用记入该账户资金流水，现金不足按可用实扣）；一旦发生过买卖成交，永久免收。拒绝躺赢，动起来！
         </Typography>
       </Box>

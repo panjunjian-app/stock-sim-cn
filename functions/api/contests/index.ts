@@ -22,6 +22,23 @@ interface ContestListItem {
   standings: Awaited<ReturnType<typeof contestStandings>>;
 }
 
+/** 当日冠军：最近一个已收市交易日快照中总资产最高的参赛者（快照为收市后总资产，含当日游手好闲费影响） */
+async function dailyWinner(db: PagesContext['env']['DB'], contestId: number) {
+  const r = await db
+    .prepare(
+      `SELECT p.user_id, s.date, s.total_assets, COALESCE(NULLIF(u.nickname, ''), u.email) AS nickname, u.avatar
+       FROM contest_participants p
+       JOIN daily_snapshots s ON s.account_id = p.account_id
+       JOIN users u ON u.id = p.user_id
+       WHERE p.contest_id = ?1 AND p.invite_status = 'accepted' AND p.account_id IS NOT NULL
+         AND s.date = (SELECT MAX(date) FROM daily_snapshots WHERE account_id = p.account_id)
+       ORDER BY s.total_assets DESC
+       LIMIT 1`
+    )
+    .first<{ user_id: number; date: string; total_assets: number; nickname: string; avatar: string }>();
+  return r ? { userId: r.user_id, nickname: r.nickname, avatar: r.avatar ?? '', total: r.total_assets, date: r.date } : null;
+}
+
 /** 组装单个比赛的完整视图 */
 async function contestView(db: PagesContext['env']['DB'], contest: ContestRow, creatorId: number) {
   const creator = await db
@@ -40,6 +57,7 @@ async function contestView(db: PagesContext['env']['DB'], contest: ContestRow, c
     createdAt: contest.created_at,
     creator: { userId: creatorId, email: creator?.email ?? '', nickname: creator?.nickname ?? '' },
     participants: standings,
+    dailyWinner: contest.status === 'active' ? await dailyWinner(db, contest.id) : null,
   };
 }
 

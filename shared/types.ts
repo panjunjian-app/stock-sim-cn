@@ -180,6 +180,8 @@ export interface ContestInfo {
   createdAt: string;
   creator: { userId: number; email: string; nickname: string };
   participants: ContestStanding[];
+  /** 当日冠军：最近一个已收市交易日快照中总资产最高者（仅进行中比赛，无快照时为 null） */
+  dailyWinner: { userId: number; nickname: string; avatar: string; total: Cents; date: string } | null;
 }
 
 export interface ContestInvitation {
