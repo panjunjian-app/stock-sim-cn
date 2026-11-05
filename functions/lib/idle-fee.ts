@@ -17,11 +17,12 @@ interface ContestLike {
   start_date: string | null;
 }
 
-/** 最近一个「已收市」的交易日（北京时间）：今天已过 15:00 → 今天；否则从昨天往前找（最多回溯 30 自然日） */
-export function lastSettledTradingDay(now: number = Date.now()): string | null {
+/** 最近一个「已收市」的交易日（北京时间）：今天已过 closeHHmm → 今天；否则从昨天往前找（最多回溯 30 自然日）
+ *  默认 15:00（扣费口径）；当日冠军展示用 '15:05'（与收盘覆盖快照时点对齐，避免取到盘中值） */
+export function lastSettledTradingDay(now: number = Date.now(), closeHHmm: string = '15:00'): string | null {
   const todayKey = beijingDateKey(now);
   // 今天已过收市时刻 → 从今天找起；未收市 → 从昨天找起（昨天必然已收市）
-  const anchor = now >= beijingToTs(todayKey, '15:00') ? now : now - 24 * 60 * 60 * 1000;
+  const anchor = now >= beijingToTs(todayKey, closeHHmm) ? now : now - 24 * 60 * 60 * 1000;
   for (let i = 0; i < 30; i++) {
     const ts = anchor - i * 24 * 60 * 60 * 1000;
     const key = beijingDateKey(ts);

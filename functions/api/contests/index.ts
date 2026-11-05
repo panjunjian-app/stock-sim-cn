@@ -22,9 +22,9 @@ interface ContestListItem {
   standings: Awaited<ReturnType<typeof contestStandings>>;
 }
 
-/** 当日冠军：最近一个「已收市」交易日快照中总资产最高的参赛者（盘中不显示当日，快照为收市后总资产，含当日游手好闲费影响） */
+/** 当日冠军：最近一个「已收市」交易日快照中总资产最高的参赛者（15:05 收盘覆盖快照落定后才计算当日，避免盘中值；含当日游手好闲费影响） */
 async function dailyWinner(db: PagesContext['env']['DB'], contestId: number) {
-  const settledDay = lastSettledTradingDay(); // 今天过 15:00 → 今天；否则最近已收市交易日
+  const settledDay = lastSettledTradingDay(Date.now(), '15:05'); // 与 daily_snapshots 收盘覆盖时点对齐
   if (!settledDay) {
     return null;
   }
@@ -36,7 +36,7 @@ async function dailyWinner(db: PagesContext['env']['DB'], contestId: number) {
        JOIN users u ON u.id = p.user_id
        WHERE p.contest_id = ?1 AND p.invite_status = 'accepted' AND p.account_id IS NOT NULL AND s.date <= ?2
          AND s.date = (SELECT MAX(date) FROM daily_snapshots WHERE account_id = p.account_id AND date <= ?2)
-       ORDER BY s.total_assets DESC
+       ORDER BY s.total_assets DESC, p.user_id ASC
        LIMIT 1`
     )
     .bind(contestId as number, settledDay)
