@@ -19,6 +19,8 @@ export default function AccountListPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const cachedQuotes = useQuoteStore((s) => s.quotes);
+  const personalAccounts = accounts.filter((a) => !a.contestId);
+  const contestAccounts = accounts.filter((a) => !!a.contestId);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -43,6 +45,10 @@ export default function AccountListPage() {
   const quotes: Record<StockSymbol, Quote> = polled ?? cachedQuotes;
 
   const handleDelete = async (account: AccountInfo) => {
+    if (account.contestId) {
+      window.alert('比赛账户不可删除（资金金额赛期锁定）');
+      return;
+    }
     if (!window.confirm(`确认删除账户「${account.name}」？虚拟资金与持仓将一并清除，不可恢复。`)) {
       return;
     }
@@ -60,13 +66,13 @@ export default function AccountListPage() {
         <Typography sx={{ fontSize: 18, fontWeight: 400, letterSpacing: '0.05em', flex: 1 }}>
           我的交易账户
           <Typography component="small" sx={{ fontSize: 12, color: MUJI.ink3, fontWeight: 400, ml: 1.5, letterSpacing: '0.1em' }}>
-            共 {accounts.length} 个
+            共 {personalAccounts.length} 个
           </Typography>
         </Typography>
         <Button
           variant="contained"
           sx={{ height: 38, px: 2.75, fontSize: 13 }}
-          disabled={accounts.length >= MAX_ACCOUNTS}
+          disabled={personalAccounts.length >= MAX_ACCOUNTS}
           onClick={() => setDialogOpen(true)}
         >
           ＋ 开新账户
@@ -79,7 +85,7 @@ export default function AccountListPage() {
 
       {loading ? (
         <Typography sx={{ fontSize: 13, color: MUJI.ink3, letterSpacing: '0.1em' }}>加载中…</Typography>
-      ) : accounts.length === 0 ? (
+      ) : personalAccounts.length === 0 ? (
         <Box
           sx={{
             bgcolor: MUJI.card,
@@ -101,9 +107,26 @@ export default function AccountListPage() {
         </Box>
       ) : (
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 2 }}>
-          {accounts.map((a) => (
+          {personalAccounts.map((a) => (
             <AccountCard key={a.id} account={a} quotes={quotes} onDelete={(acc) => void handleDelete(acc)} />
           ))}
+        </Box>
+      )}
+
+      {/* 比赛账户（大比拼，赛期资金锁定） */}
+      {contestAccounts.length > 0 && (
+        <Box sx={{ mt: 4 }}>
+          <Typography sx={{ fontSize: 18, fontWeight: 400, letterSpacing: '0.05em', mb: 2.75 }}>
+            🏆 比赛账户
+            <Typography component="small" sx={{ fontSize: 12, color: MUJI.ink3, fontWeight: 400, ml: 1.5, letterSpacing: '0.1em' }}>
+              赛期资金锁定 · 不可入金/删除
+            </Typography>
+          </Typography>
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 2 }}>
+            {contestAccounts.map((a) => (
+              <AccountCard key={a.id} account={a} quotes={quotes} onDelete={(acc) => void handleDelete(acc)} />
+            ))}
+          </Box>
         </Box>
       )}
 

@@ -6,7 +6,8 @@ import type { PagesContext } from '../../lib/env';
 export const onRequestGet = async (ctx: PagesContext): Promise<Response> => {
   try {
     const auth = await requireAuth(ctx);
-    return ok({ user: { id: auth.userId, email: auth.email } });
+    const u = await ctx.env.DB.prepare('SELECT nickname FROM users WHERE id = ?1').bind(auth.userId).first<{ nickname: string }>();
+    return ok({ user: { id: auth.userId, email: auth.email, nickname: u?.nickname ?? '' } });
   } catch {
     return fail(CODE.UNAUTHORIZED, '未登录', 401);
   }

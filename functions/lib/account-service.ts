@@ -17,6 +17,7 @@ export interface AccountRow {
   init_cash: number;
   status: 'active' | 'deleted';
   created_at: string;
+  contest_id: number | null;
 }
 
 export interface PositionRow {
@@ -44,6 +45,7 @@ export interface CashFlowRow {
 }
 
 export interface AccountListItem extends AccountRow {
+  contest_name: string | null;
   positions_count: number;
   total_deposit: number;
   position_symbols: Array<{ symbol: string; symbolName: string; qty: number; avgCost: number }>;
@@ -79,7 +81,7 @@ export async function openAccount(
     throw new ApiError(CODE.CASH_RANGE, '初始资金不能低于 10 元（范围：10 元 ~ 1000 万元）');
   }
   const cnt = await db
-    .prepare("SELECT COUNT(*) AS c FROM trade_accounts WHERE user_id = ?1 AND status = 'active'")
+    .prepare("SELECT COUNT(*) AS c FROM trade_accounts WHERE user_id = ?1 AND status = 'active' AND contest_id IS NULL")
     .bind(userId)
     .first<{ c: number }>();
   if ((cnt?.c ?? 0) >= MAX_ACCOUNTS_PER_USER) {
@@ -169,6 +171,18 @@ export async function listAccounts(db: D1Database, userId: number): Promise<Acco
       .all<AccountRow>()
   ).results ?? [];
 
+  // 比赛账户补充比赛名
+  const contestIds = [...new Set(accounts.map((a) => a.contest_id).filter((x): x is number => x !== null))];
+  const contestNames = new Map<number, string>();
+  if (contestIds.length > 0) {
+    const cRes = await db
+      .prepare(`SELECT id, name, status FROM contests WHERE id IN (${contestIds.join(',')})`)
+      .all<{ id: number; name: string; status: string }>();
+    for (const c of cRes.results ?? []) {
+      contestNames.set(c.id, c.name);
+    }
+  }
+
   const items: AccountListItem[] = [];
   for (const acc of accounts) {
     const positions = (
@@ -183,6 +197,7 @@ export async function listAccounts(db: D1Database, userId: number): Promise<Acco
       .first<{ s: number }>();
     items.push({
       ...acc,
+      contest_name: acc.contest_id !== null ? contestNames.get(acc.contest_id) ?? null : null,
       positions_count: positions.length,
       // 累计入金 = Σ deposit 流水（开户时的 init_cash 已写入为首笔 deposit 流水）
       total_deposit: depositSum?.s ?? 0,

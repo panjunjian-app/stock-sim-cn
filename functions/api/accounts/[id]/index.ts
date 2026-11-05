@@ -2,6 +2,7 @@ import { handleError, ok } from '../../../lib/response';
 import { requireAuth } from '../../../lib/auth';
 import { requireOwnedAccount, softDeleteAccount } from '../../../lib/account-service';
 import { totalDeposit } from '../../../lib/account-service';
+import { guardContestAccount } from '../../../lib/contest';
 import type { PagesContext } from '../../../lib/env';
 
 interface Params {
@@ -35,6 +36,7 @@ export const onRequestDelete = async (ctx: PagesContext<Params>): Promise<Respon
   try {
     const auth = await requireAuth(ctx);
     const acc = await requireOwnedAccount(ctx.env.DB, auth.userId, Number(ctx.params.id));
+    guardContestAccount(acc); // 比赛账户不可删除
     await softDeleteAccount(ctx.env.DB, acc.id);
     return ok({});
   } catch (err) {

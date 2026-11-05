@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { PropsWithChildren } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
-import { Box, Button, Typography } from '@mui/material';
+import { Box, Button, Menu, MenuItem, Typography } from '@mui/material';
 import { MUJI } from '../theme/muji-theme';
 import DisclaimerBanner from '../components/DisclaimerBanner';
+import AccountSettingsDialog from '../components/AccountSettingsDialog';
 import { useAuthStore } from '../store/auth-store';
 import { authApi } from '../services/auth-api';
 import { useSnapshotHeartbeat } from '../hooks/use-snapshot-heartbeat';
@@ -35,8 +37,11 @@ export default function AppLayout({ children }: PropsWithChildren) {
 
   const path = window.location.pathname;
   const isDashboard = path.startsWith('/dashboard');
+  const isContests = path.startsWith('/contests');
   const isAccounts = path.startsWith('/accounts');
   const isMarket = path.startsWith('/market') || path.startsWith('/trade');
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
   // 登录态全局快照心跳（60s，静默失败）
   useSnapshotHeartbeat(Boolean(user));
@@ -96,6 +101,9 @@ export default function AppLayout({ children }: PropsWithChildren) {
           <Button disableRipple onClick={() => navigate('/dashboard')} sx={{ ...activeTabStyle(isDashboard), px: 1.75, py: 1, fontSize: 13.5, fontWeight: 400, letterSpacing: '0.1em' }}>
             分析报告
           </Button>
+          <Button disableRipple onClick={() => navigate('/contests')} sx={{ ...activeTabStyle(isContests), px: 1.75, py: 1, fontSize: 13.5, fontWeight: 400, letterSpacing: '0.1em' }}>
+            大比拼
+          </Button>
           <Button disableRipple onClick={() => navigate('/accounts')} sx={{ ...activeTabStyle(isAccounts), px: 1.75, py: 1, fontSize: 13.5, fontWeight: 400, letterSpacing: '0.1em' }}>
             我的账户
           </Button>
@@ -106,22 +114,45 @@ export default function AppLayout({ children }: PropsWithChildren) {
         {user && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <Box
-              sx={{
-                width: 30,
-                height: 30,
-                borderRadius: '50%',
-                bgcolor: MUJI.paper2,
-                border: `1px solid ${MUJI.line}`,
-                color: MUJI.ink2,
-                fontSize: 12,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
+              onClick={(e) => setAnchorEl(e.currentTarget)}
+              sx={{ display: 'flex', alignItems: 'center', gap: 1.5, cursor: 'pointer', borderRadius: '4px', px: 0.75, py: 0.5, '&:hover': { bgcolor: MUJI.paper } }}
             >
-              {user.email.slice(0, 1).toUpperCase()}
+              <Box
+                sx={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: '50%',
+                  bgcolor: MUJI.paper2,
+                  border: `1px solid ${MUJI.line}`,
+                  color: MUJI.ink2,
+                  fontSize: 12,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {(user.nickname || user.email).slice(0, 1).toUpperCase()}
+              </Box>
+              <Typography sx={{ fontSize: 12.5, color: MUJI.ink, letterSpacing: '0.1em' }}>{user.nickname || user.email}</Typography>
             </Box>
-            <Typography sx={{ fontSize: 12.5, color: MUJI.ink, letterSpacing: '0.1em' }}>{user.email}</Typography>
+            <Menu anchorEl={anchorEl} open={anchorEl !== null} onClose={() => setAnchorEl(null)} sx={{ '& .MuiMenuItem-root': { fontSize: 13.5 } }}>
+              <MenuItem
+                onClick={() => {
+                  setAnchorEl(null);
+                  setSettingsOpen(true);
+                }}
+              >
+                ⚙️ 账号设置
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  setAnchorEl(null);
+                  void handleLogout();
+                }}
+              >
+                退出登录
+              </MenuItem>
+            </Menu>
             <Button size="small" variant="text" onClick={() => void handleLogout()} sx={{ color: MUJI.ink3, fontSize: 12, letterSpacing: '0.1em' }}>
               退出
             </Button>
@@ -134,6 +165,9 @@ export default function AppLayout({ children }: PropsWithChildren) {
 
       {/* 底部免责声明 */}
       <DisclaimerBanner />
+
+      {/* 账号设置弹窗 */}
+      <AccountSettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </Box>
   );
 }

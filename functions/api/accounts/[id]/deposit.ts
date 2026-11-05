@@ -1,6 +1,7 @@
 import { ApiError, CODE, handleError, ok } from '../../../lib/response';
 import { requireAuth } from '../../../lib/auth';
 import { requireOwnedAccount, deposit } from '../../../lib/account-service';
+import { guardContestAccount } from '../../../lib/contest';
 import { toCents } from '../../../../shared/money';
 import type { PagesContext } from '../../../lib/env';
 
@@ -18,6 +19,7 @@ export const onRequestPost = async (ctx: PagesContext<Params>): Promise<Response
   try {
     const auth = await requireAuth(ctx);
     const acc = await requireOwnedAccount(ctx.env.DB, auth.userId, Number(ctx.params.id));
+    guardContestAccount(acc); // 比赛账户资金锁定，禁止入金
     const body = (await ctx.request.json().catch(() => ({}))) as Body;
     const amount = typeof body.amount === 'string' ? toCents(body.amount) : (body.amount ?? 0);
     if (typeof body.amount === 'string' && Number.isNaN(amount)) {

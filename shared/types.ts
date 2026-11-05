@@ -16,6 +16,7 @@ export type Cents = number;
 export interface User {
   id: number;
   email: string;
+  nickname?: string;
 }
 
 /** 行情快照（代理接口返回，价格字段为分） */
@@ -143,6 +144,50 @@ export interface AccountInfo {
   totalDeposit: Cents;
   /** 持仓简表（供列表页合并行情计算总资产） */
   positionSymbols: Array<{ symbol: Symbol; symbolName: string; qty: number; avgCost: Cents }>;
+  /** 比赛账户标记（null=个人账户） */
+  contestId?: number | null;
+  contestName?: string | null;
+}
+
+// ==================== 炒炒乐大比拼 ====================
+
+export type ContestStatus = 'pending' | 'active' | 'finished' | 'cancelled';
+
+export interface ContestStanding {
+  userId: number;
+  nickname: string;
+  email: string;
+  role: 'creator' | 'invitee';
+  inviteStatus: 'pending' | 'accepted' | 'declined';
+  accountId: number | null;
+  isWinner: boolean;
+  finalTotal: Cents | null;
+  currentTotal: Cents | null;
+  yesterdayPnl: Cents | null;
+}
+
+export interface ContestInfo {
+  id: number;
+  name: string;
+  status: ContestStatus;
+  initCash: Cents;
+  durationMonths: number;
+  startDate: string | null;
+  endDate: string | null;
+  createdAt: string;
+  creator: { userId: number; email: string; nickname: string };
+  participants: ContestStanding[];
+}
+
+export interface ContestInvitation {
+  contestId: number;
+  name: string;
+  initCash: Cents;
+  durationMonths: number;
+  createdAt: string;
+  creator: { email: string; nickname: string };
+  acceptedCount: number;
+  totalCount: number;
 }
 
 /** 成交（交割单 DTO） */

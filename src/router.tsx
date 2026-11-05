@@ -8,6 +8,7 @@ import AccountListPage from './pages/AccountListPage';
 import AccountDetailPage from './pages/AccountDetailPage';
 import MarketPage from './pages/MarketPage';
 import DashboardPage from './pages/DashboardPage';
+import ContestsPage from './pages/ContestsPage';
 import { useAuthStore } from './store/auth-store';
 import { MUJI } from './theme/muji-theme';
 
@@ -73,6 +74,7 @@ export default function AppRouter() {
       />
       <Route element={<RequireAuth />}>
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/contests" element={<ContestsPage />} />
         <Route path="/accounts" element={<AccountListPage />} />
         <Route path="/accounts/:id" element={<AccountDetailPage />} />
         <Route path="/market" element={<MarketPage />} />
