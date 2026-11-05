@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Box, MenuItem, TextField, Typography, Button } from '@mui/material';
-import type { OrderInput, Position, Quote, Side } from '../../shared/types';
+import type { AccountInfo, OrderInput, Position, Quote, Side } from '../../shared/types';
 import { calcBuyFreeze, calcFees } from '../../shared/fees';
 import { formatYuan, formatYuanSymbol, toCents } from '../../shared/money';
 import { isStName, priceLimitRange } from '../../shared/validate';
@@ -16,14 +16,29 @@ export interface OrderPanelProps {
   position: Position | undefined;
   /** 账户可用资金（分） */
   cashAvailable: number;
+  /** 全部可交易账户（个人 + 比赛） */
+  accounts: AccountInfo[];
+  /** 当前选中的交易账户 */
+  selectedAccountId: number | null;
+  /** 切换交易账户 */
+  onSelectAccount: (id: number) => void;
   /** 提交委托；返回错误信息（null=成功） */
   onSubmit: (input: OrderInput) => Promise<string | null>;
 }
 
 /**
- * OrderPanel — 买/卖切换、限价/市价、价格数量输入、可买/可卖上限、费用预估
+ * OrderPanel — 账户选择（个人/比赛）、买/卖切换、限价/市价、价格数量输入、可买/可卖上限、费用预估
  */
-export default function OrderPanel({ symbol, quote, position, cashAvailable, onSubmit }: OrderPanelProps) {
+export default function OrderPanel({
+  symbol,
+  quote,
+  position,
+  cashAvailable,
+  accounts,
+  selectedAccountId,
+  onSelectAccount,
+  onSubmit,
+}: OrderPanelProps) {
   const { isOpen } = useTradingTime();
   const [side, setSide] = useState<Side>('buy');
   const [orderType, setOrderType] = useState<'limit' | 'market'>('limit');
@@ -151,6 +166,30 @@ export default function OrderPanel({ symbol, quote, position, cashAvailable, onS
           );
         })}
       </Box>
+
+      {/* 交易账户选择（个人 / 比赛） */}
+      {accounts.length > 0 && (
+        <>
+          <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.05em', mt: 2.5, mb: 1 }}>交易账户</Typography>
+          <TextField
+            select
+            fullWidth
+            value={selectedAccountId ?? ''}
+            onChange={(e) => onSelectAccount(Number(e.target.value))}
+            sx={inputSx}
+          >
+            {accounts.map((a) => (
+              <MenuItem key={a.id} value={a.id} sx={{ fontSize: 13 }}>
+                {a.contestId ? '🏁 ' : ''}
+                {a.contestId ? (a.contestName || a.name) : a.name}
+                <Box component="span" sx={{ ml: 1, fontSize: 11.5, color: MUJI.ink3 }}>
+                  ¥{(a.cashAvailable / 100).toLocaleString('zh-CN')}
+                </Box>
+              </MenuItem>
+            ))}
+          </TextField>
+        </>
+      )}
 
       <Typography sx={{ fontSize: 12, color: MUJI.ink2, letterSpacing: '0.05em', mt: 2.5, mb: 1 }}>委托类型</Typography>
       <TextField

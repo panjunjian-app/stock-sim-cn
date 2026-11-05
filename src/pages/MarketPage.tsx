@@ -13,6 +13,7 @@ import OrderPanel from '../components/OrderPanel';
 import { marketApi } from '../services/market-api';
 import { accountApi } from '../services/account-api';
 import { watchlistApi, WatchlistItem } from '../services/watchlist-api';
+import type { AccountInfo } from '../../shared/types';
 import { useQuotePolling } from '../hooks/use-quote-polling';
 import { useQuoteStore } from '../store/quote-store';
 import { ApiError } from '../services/http';
@@ -43,7 +44,8 @@ export default function MarketPage() {
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [listTab, setListTab] = useState<ListTab>('default');
 
-  // 账户上下文（取第一个账户用于下单与 tick）
+  // 账户上下文：全部账户（个人 + 比赛）可选，用于下单与 tick
+  const [accounts, setAccounts] = useState<AccountInfo[]>([]);
   const [accountId, setAccountId] = useState<number | null>(null);
   const [cashAvailable, setCashAvailable] = useState(0);
   const [positions, setPositions] = useState<Position[]>([]);
@@ -71,23 +73,29 @@ export default function MarketPage() {
     };
   }, []);
 
+  // 切换/选定账户后加载其资金与持仓
+  const loadAccountContext = useCallback(async (id: number) => {
+    const [{ account }, { positions: ps }] = await Promise.all([
+      accountApi.getAccount(id),
+      accountApi.getPositions(id),
+    ]);
+    setCashAvailable(account.cashAvailable);
+    setPositions(ps);
+  }, []);
+
+  // 首次拉取账户列表（个人 + 比赛账户），默认选第一个
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const { accounts } = await accountApi.listAccounts();
-        if (cancelled || accounts.length === 0) {
+        const { accounts: list } = await accountApi.listAccounts();
+        if (cancelled || list.length === 0) {
           return;
         }
-        const first = accounts[0];
+        setAccounts(list);
+        const first = list[0];
         setAccountId(first.id);
-        const [{ account }, { positions: ps }] = await Promise.all([
-          accountApi.getAccount(first.id),
-          accountApi.getPositions(first.id),
-        ]);
-        if (cancelled) return;
-        setCashAvailable(account.cashAvailable);
-        setPositions(ps);
+        await loadAccountContext(first.id);
       } catch {
         /* 静默：看盘页不依赖账户也可用 */
       }
@@ -95,7 +103,19 @@ export default function MarketPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadAccountContext]);
+
+  // 下单面板切换交易账户
+  const selectAccount = useCallback(
+    (id: number) => {
+      if (id === accountId) return;
+      setAccountId(id);
+      void loadAccountContext(id).catch(() => {
+        /* 切换失败静默，面板资金/持仓维持原值 */
+      });
+    },
+    [accountId, loadAccountContext],
+  );
 
   // 行情轮询池：默认池 + 我的自选 + 当前选中 + 持仓（关键：当前选中必须在池内，
   // 否则远程搜索选中的股票不在默认池时 QuoteHeader 一直显示「等待行情数据」）
@@ -385,12 +405,15 @@ export default function MarketPage() {
         <NewsList symbol={symbol} />
       </Box>
 
-      {/* 右：下单面板 */}
+      {/* 右：下单面板（可切换个人账户 / 比赛账户） */}
       <OrderPanel
         symbol={symbol}
         quote={quote}
         position={position}
         cashAvailable={cashAvailable}
+        accounts={accounts}
+        selectedAccountId={accountId}
+        onSelectAccount={selectAccount}
         onSubmit={submitOrder}
       />
     </Box>
