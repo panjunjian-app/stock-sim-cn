@@ -80,8 +80,13 @@ export default function ContestsPage() {
         <Typography sx={{ fontSize: 17, fontWeight: 500, color: MUJI.ink, letterSpacing: '0.08em', mr: 'auto' }}>
           炒炒乐大比拼
         </Typography>
-        <Badge badgeContent={pendingInvitations} color="error">
-          <Button variant="outlined" onClick={() => setInboxOpen(true)} sx={{ fontSize: 13, borderColor: MUJI.line, color: MUJI.ink2, borderRadius: '3px' }}>
+        <Badge
+          badgeContent={pendingInvitations > 9 ? '9+' : pendingInvitations}
+          color="error"
+          invisible={pendingInvitations === 0}
+          sx={{ '& .MuiBadge-badge': { fontSize: 11, minWidth: 18, height: 18, right: -4 } }}
+        >
+          <Button variant="outlined" onClick={() => setInboxOpen(true)} sx={{ fontSize: 13, borderColor: pendingInvitations > 0 ? MUJI.red : MUJI.line, color: pendingInvitations > 0 ? MUJI.red : MUJI.ink2, borderRadius: '3px' }}>
             📥 挑战邀请{pendingInvitations > 0 ? `（${pendingInvitations}）` : ''}
           </Button>
         </Badge>

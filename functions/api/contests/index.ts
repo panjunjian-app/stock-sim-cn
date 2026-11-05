@@ -180,6 +180,19 @@ export const onRequestPost = async (ctx: PagesContext): Promise<Response> => {
         ).bind(contestId as number, u.id, nowIso)
       ),
     ];
+    // 站内消息推送：被邀请人顶栏铃铛全站可见红点提醒（处理入口：大比拼 → 挑战邀请）
+    const creator = await ctx.env.DB
+      .prepare('SELECT COALESCE(NULLIF(nickname, \'\'), ?2) AS nickname FROM users WHERE id = ?1')
+      .bind(auth.userId, auth.email)
+      .first<{ nickname: string }>();
+    const inviteMsg = `${creator?.nickname ?? auth.email} 邀您参加比赛「${name}」（每人初始 ¥${(initCash / 100).toLocaleString('zh-CN')} · 周期 ${duration} 个月），请到「大比拼 → 挑战邀请」处理。`;
+    stmts.push(
+      ...invitees.map((u) =>
+        ctx.env.DB.prepare(
+          "INSERT INTO system_messages (user_id, type, title, body, ref_id, is_read, created_at) VALUES (?1, 'contest_invite', ?2, ?3, ?4, 0, ?5)"
+        ).bind(u.id, '📨 收到挑战邀请', inviteMsg, contestId as number, nowIso)
+      )
+    );
     await ctx.env.DB.batch(stmts);
 
     return ok({ contestId, invited: invitees.map((u) => u.email) }, '挑战邀请已发送');
