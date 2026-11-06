@@ -100,12 +100,28 @@ export default function ContestsPage() {
         </Button>
       </Box>
 
-      {/* 比赛规则（防坐赢：游手好闲费） */}
+      {/* 比赛规则（防躺赢：游手好闲费） */}
       <Box sx={{ bgcolor: MUJI.card, border: `1px dashed ${MUJI.line}`, borderRadius: '4px', px: 2.25, py: 1.5, mb: 2.5 }}>
-        <Typography sx={{ fontSize: 12.5, color: MUJI.ink2, lineHeight: 2, letterSpacing: '0.03em' }}>
-          📜 比赛规则：进行中比赛每个交易日收市后检查各参赛比赛账户，<b style={{ fontWeight: 500 }}>开赛首个交易日豁免，自第二个交易日起，开赛以来从未有过买卖成交的账户将收取「游手好闲费」＝ 初始资金 × 1%</b>
-          （费用记入该账户资金流水，现金不足按可用实扣）；一旦发生过买卖成交，永久免收。拒绝躺赢，动起来！
+        <Typography sx={{ fontSize: 12.5, fontWeight: 500, color: MUJI.ink2, letterSpacing: '0.03em', mb: 0.75 }}>
+          📜 比赛规则 · 拒绝躺赢，动起来！
         </Typography>
+        <Box component="ul" sx={{ m: 0, p: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {[
+            ['空仓检查', '每个交易日收市后，检查各参赛账户是否空仓（未持有任何股票）'],
+            ['扣费规则', '连续 3 个交易日空仓，自第 3 个交易日起每日收市后扣除「游手好闲费」＝ 初始资金 × 1%'],
+            ['停止与重启', '买入持仓后立即停止扣除；此后若再次连续 3 个交易日空仓，规则重新启动'],
+            ['费用结算', '费用记入账户资金流水；现金不足按可用资金实扣，扣完为止'],
+          ].map(([label, desc]) => (
+            <Box component="li" key={label} sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
+              <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: MUJI.ink3, flexShrink: 0, transform: 'translateY(-2px)' }} />
+              <Typography sx={{ fontSize: 12.5, color: MUJI.ink2, lineHeight: 1.7, letterSpacing: '0.02em' }}>
+                <b style={{ fontWeight: 500, color: MUJI.ink }}>{label}</b>
+                <span style={{ margin: '0 6px', color: MUJI.ink3 }}>|</span>
+                {desc}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
       </Box>
 
       {loading && contests.length === 0 ? (
