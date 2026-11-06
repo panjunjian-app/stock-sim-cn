@@ -208,7 +208,7 @@ async function fetchMinuteTencent(symbol: StockSymbol): Promise<{ points: Minute
       continue;
     }
     const p = raw.trim().split(/\s+/);
-    // 每点：'HHmm 价格 累计量(手) 均价'，部分行情缺均价则自行累计
+    // 每点：'HHmm 价格 累计量(手) 累计成交额(元)'，如 '0930 1450.00 1561 226345000.00'
     if (p.length < 2) {
       continue;
     }
@@ -222,8 +222,12 @@ async function fetchMinuteTencent(symbol: StockSymbol): Promise<{ points: Minute
     const dAmount = dVol * price * 100;
     cumVol = vol;
     cumAmount += dAmount;
+    // 第 4 字段实为累计成交额（元），换算真实均价 = 累计额 ÷ (累计量(手)×100)；
+    // 上游缺失或异常时退化为估算均价（成交额按逐笔价格×量累计）
     let avg = Number(p[3]);
-    if (!Number.isFinite(avg)) {
+    if (Number.isFinite(avg) && avg > 0 && cumVol > 0) {
+      avg = avg / (cumVol * 100);
+    } else if (!Number.isFinite(avg) || avg <= 0) {
       avg = cumVol > 0 ? cumAmount / (cumVol * 100) : price;
     }
     points.push({ time, price, avgPrice: avg, volume: dVol });

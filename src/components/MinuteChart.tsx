@@ -78,9 +78,14 @@ export default function MinuteChart({ points, prevClose }: MinuteChartProps) {
       </div>
     );
   }
+  // svg 为 useMemo 生成的 SVG 字符串，必须经 dangerouslySetInnerHTML 注入：
+  // 作为 children 时 React 会将其当作纯文本节点，SVG 根内裸文本不渲染，图表全空白。
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: '100%', height: '100%', display: 'block' }}>
-      {svg}
-    </svg>
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      preserveAspectRatio="none"
+      style={{ width: '100%', height: '100%', display: 'block' }}
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
   );
 }
