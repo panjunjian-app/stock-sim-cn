@@ -152,7 +152,7 @@ export default function ContestRankingChart({ contest }: Props) {
             </Box>
           )}
           <Typography sx={{ fontSize: 12.5, fontWeight: 500, color: MUJI.ink }}>{contest.dailyWinner.nickname}</Typography>
-          <Typography sx={{ fontSize: 12, color: MUJI.red }}>{fmtCents(contest.dailyWinner.total)}</Typography>
+          <Typography sx={{ fontSize: 12, color: MUJI.red }}>{fmtCents(contest.dailyWinner.total, 4)}</Typography>
           <Typography sx={{ fontSize: 11, color: MUJI.ink3 }}>({contest.dailyWinner.date.slice(5)} 收市)</Typography>
         </Box>
       )}
@@ -167,7 +167,7 @@ export default function ContestRankingChart({ contest }: Props) {
             contentStyle={{ fontSize: 12, border: `1px solid ${MUJI.line}`, borderRadius: 4 }}
             formatter={(v: unknown, n: unknown) => {
               if (n === 'total') {
-                return [`当前总资金 ${fmtCents(Math.round(Number(v) * 100))}`, '总资金'] as [string, string];
+                return [`当前总资金 ${fmtCents(Math.round(Number(v) * 100), 4)}`, '总资金'] as [string, string];
               }
               return [String(v), ''] as [string, string];
             }}

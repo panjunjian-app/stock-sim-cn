@@ -33,16 +33,19 @@ export const biGridProps = {
   vertical: false,
 } as const;
 
-/** 分 → 万元/亿元 展示 */
-export function fmtCents(cents: number): string {
+/**
+ * 分 → 万元/亿元 展示。
+ * @param decimals 万/亿分支的小数位（默认 2）；元分支（<1万）固定 2 位（已精确到分）
+ */
+export function fmtCents(cents: number, decimals = 2): string {
   const yuan = cents / 100;
   const abs = Math.abs(yuan);
   const sign = yuan < 0 ? '-' : '';
   if (abs >= 1e8) {
-    return `${sign}${(abs / 1e8).toFixed(2)}亿`;
+    return `${sign}${(abs / 1e8).toFixed(decimals)}亿`;
   }
   if (abs >= 1e4) {
-    return `${sign}${(abs / 1e4).toFixed(2)}万`;
+    return `${sign}${(abs / 1e4).toFixed(decimals)}万`;
   }
   return `${sign}${abs.toFixed(2)}`;
 }
