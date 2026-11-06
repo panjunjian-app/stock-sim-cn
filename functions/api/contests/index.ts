@@ -12,6 +12,7 @@ import {
   type ContestRow,
 } from '../../lib/contest';
 import { settleIdleFees, lastSettledTradingDay } from '../../lib/idle-fee';
+import { beijingDateKey, isTradingDay } from '../../../shared/trading-calendar';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -22,11 +23,17 @@ interface ContestListItem {
   standings: Awaited<ReturnType<typeof contestStandings>>;
 }
 
-/** 当日冠军：最近一个「已收市」交易日快照中总资产最高的参赛者（15:05 收盘覆盖快照落定后才计算当日，避免盘中值；含当日游手好闲费影响） */
+/** 当日冠军：最近一个「已收市」交易日快照中总资产最高的参赛者（15:05 收盘覆盖快照落定后才计算当日，避免盘中值；含当日游手好闲费影响）。
+ *  交易日盘中（当天未到 15:05 核算点）不返回昨日冠军：开市即清空冠军牌，等当天收市核算后再显示；非交易日（周末/假日）保留最近收市冠军 */
 async function dailyWinner(db: PagesContext['env']['DB'], contestId: number) {
-  const settledDay = lastSettledTradingDay(Date.now(), '15:05'); // 与 daily_snapshots 收盘覆盖时点对齐
+  const now = Date.now();
+  const settledDay = lastSettledTradingDay(now, '15:05'); // 与 daily_snapshots 收盘覆盖时点对齐
   if (!settledDay) {
     return null;
+  }
+  const todayKey = beijingDateKey(now);
+  if (settledDay < todayKey && isTradingDay(todayKey)) {
+    return null; // 今天是交易日但尚未收市核算 → 挂牌清空，收市后 settledDay 轮到今天再显示
   }
   const r = await db
     .prepare(
