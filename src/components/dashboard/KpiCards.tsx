@@ -32,7 +32,7 @@ export default function KpiCards({ kpi }: { kpi: BiKpi }) {
   const dirColor = pnlColor(kpi.rangePnl);
   return (
     <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
-      <Card label="总资产" value={fmtCents(kpi.totalAssets)} sub="按最新行情估算" />
+      <Card label="总资产" value={fmtCents(kpi.totalAssets, 4)} sub="按最新行情估算" />
       <Card label="区间收益率" value={fmtPct(kpi.rangeReturnPct)} color={pnlColor(kpi.rangeReturnPct)} />
       <Card label="区间盈亏" value={fmtPnl(kpi.rangePnl)} color={dirColor} />
       <Card label="当日盈亏" value={fmtPnl(kpi.dayPnl)} color={pnlColor(kpi.dayPnl)} sub="截至最新行情" />
