@@ -1,14 +1,15 @@
 /**
  * /api/contests — 大比拼
  * GET  我的比赛列表（含各参与者排行/邀请状态）+ 待处理邀请数
- * POST 发起挑战 { name, initCash(分), durationMonths, inviteEmails[] ≤2 }
+ * POST 发起挑战 { name, initCash(分), durationMonths, inviteEmails[] ≤4 }
  */
 import { ApiError, CODE, handleError, ok } from '../../lib/response';
 import { requireAuth } from '../../lib/auth';
 import type { PagesContext } from '../../lib/env';
 import {
-  contestStandings, countOccupiedContests, finishDueContests,
-  CONTEST_INIT_MIN, CONTEST_INIT_MAX, CONTEST_DURATIONS, CONTEST_MAX_OCCUPIED, CONTEST_MAX_PARTICIPANTS,
+  contestStandings, countOccupiedContests, countCreatedContests, finishDueContests,
+  assertCreatorCreatedQuota,
+  CONTEST_INIT_MIN, CONTEST_INIT_MAX, CONTEST_DURATIONS, CONTEST_MAX_OCCUPIED, CONTEST_MAX_PARTICIPANTS, CONTEST_MAX_CREATED,
   type ContestRow,
 } from '../../lib/contest';
 import { settleIdleFees, lastSettledTradingDay } from '../../lib/idle-fee';
@@ -152,6 +153,10 @@ export const onRequestPost = async (ctx: PagesContext): Promise<Response> => {
     if (occupied >= CONTEST_MAX_OCCUPIED) {
       throw new ApiError(CODE.BAD_PARAM, `同时进行中的比赛最多 ${CONTEST_MAX_OCCUPIED} 场，请等待某场结束或取消`);
     }
+
+    // 每用户同时作为发起人的进行中比赛 ≤ CONTEST_MAX_CREATED 场（仅创建新比赛时校验，不触碰存量比赛）
+    const created = await countCreatedContests(ctx.env.DB, auth.userId);
+    assertCreatorCreatedQuota(created);
 
     // 邀请对象必须已注册
     const invitees: Array<{ id: number; email: string }> = [];

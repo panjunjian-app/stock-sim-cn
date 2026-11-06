@@ -132,7 +132,7 @@ export default function ContestsMobilePage() {
             <br />
             每人初始资金 1万~1000万 · 周期 1/3/6/12 个月
             <br />
-            含发起人最多 3 人 · 同时进行最多 3 场
+            含发起人最多 5 人 · 同时进行最多 4 场
           </Typography>
         </Box>
       ) : (

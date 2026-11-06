@@ -7,7 +7,7 @@
 import { ApiError, CODE, handleError, ok } from '../../lib/response';
 import { requireAuth } from '../../lib/auth';
 import type { PagesContext } from '../../lib/env';
-import { activateContest } from '../../lib/contest';
+import { activateContest, countContestOccupancy, assertContestNotFull } from '../../lib/contest';
 
 interface RespondRow {
   p_id: number;
@@ -50,6 +50,10 @@ export const onRequestPost = async (ctx: PagesContext): Promise<Response> => {
       ]);
       return ok({ result: 'declined', contestStatus: 'cancelled' }, '已拒绝，本次挑战已作废');
     }
+
+    // 防御性兜底（创建时名单已固定，理论不触发）：参赛名额（accepted+pending）已满则拒绝加入，不触碰存量比赛数据
+    const occupancy = await countContestOccupancy(ctx.env.DB, contestId);
+    assertContestNotFull(occupancy);
 
     await ctx.env.DB.prepare("UPDATE contest_participants SET invite_status = 'accepted' WHERE id = ?1").bind(row.p_id).run();
     const remaining = await ctx.env.DB

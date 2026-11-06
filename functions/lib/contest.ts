@@ -1,6 +1,6 @@
 /**
  * functions/lib/contest.ts — 炒炒乐大比拼核心业务
- * 规则：含发起人共 3 人上限；每用户进行中（pending+active）比赛 ≤3；拒绝即作废；
+ * 规则：含发起人共 5 人上限；每用户进行中（pending+active）比赛 ≤4；每用户同时作为发起人 ≤4 场；拒绝即作废；
  *       全员同意当日开始（非交易日顺延下一交易日），结束 = 开始 + N 个自然月；
  *       比赛账户复用 trade_accounts（contest_id 标记），禁止入金/删除，结束后禁止交易。
  */
@@ -9,8 +9,9 @@ import { ApiError, CODE } from './response';
 import { isTradingDay, beijingDateKey } from '../../shared/trading-calendar';
 import type { D1Database } from './env';
 
-export const CONTEST_MAX_OCCUPIED = 3; // 每用户进行中比赛上限
-export const CONTEST_MAX_PARTICIPANTS = 3; // 含发起人
+export const CONTEST_MAX_OCCUPIED = 4; // 每用户进行中比赛上限（发起+参加合计）
+export const CONTEST_MAX_PARTICIPANTS = 5; // 单场比赛含发起人人数上限
+export const CONTEST_MAX_CREATED = 4; // 每用户同时作为发起人的进行中比赛上限
 export const CONTEST_INIT_MIN = 1_000_000; // 1 万元（分）
 export const CONTEST_INIT_MAX = 1_000_000_000; // 1000 万元（分）
 export const CONTEST_DURATIONS = [1, 3, 6, 12] as const;
@@ -83,6 +84,43 @@ export async function countOccupiedContests(db: D1Database, userId: number): Pro
     .bind(userId)
     .first<{ n: number }>();
   return r?.n ?? 0;
+}
+
+/** 每用户同时作为发起人的进行中（pending+active）比赛数 */
+export async function countCreatedContests(db: D1Database, userId: number): Promise<number> {
+  const r = await db
+    .prepare("SELECT COUNT(*) AS n FROM contests WHERE creator_id = ?1 AND status IN ('pending', 'active')")
+    .bind(userId)
+    .first<{ n: number }>();
+  return r?.n ?? 0;
+}
+
+/** 某比赛已占用的参赛名额数（accepted + pending，不含 declined） */
+export async function countContestOccupancy(db: D1Database, contestId: number): Promise<number> {
+  const r = await db
+    .prepare(
+      `SELECT COUNT(*) AS n FROM contest_participants
+       WHERE contest_id = ?1 AND invite_status IN ('accepted', 'pending')`
+    )
+    .bind(contestId)
+    .first<{ n: number }>();
+  return r?.n ?? 0;
+}
+
+// ---------------- 容量护栏（纯校验，便于单测） ----------------
+
+/** 发起人同时进行中比赛护栏：已发起 ≥ CONTEST_MAX_CREATED 场时拒绝再发起 */
+export function assertCreatorCreatedQuota(createdCount: number): void {
+  if (createdCount >= CONTEST_MAX_CREATED) {
+    throw new ApiError(CODE.BAD_PARAM, `最多同时发起 ${CONTEST_MAX_CREATED} 场挑战`);
+  }
+}
+
+/** 参赛人数护栏（accept 防御性兜底，理论不触发）：名额已满时拒绝加入 */
+export function assertContestNotFull(occupancy: number): void {
+  if (occupancy >= CONTEST_MAX_PARTICIPANTS) {
+    throw new ApiError(CODE.BAD_PARAM, '该比赛人数已满');
+  }
 }
 
 /** 开赛：写起止日期、置 active、为每个参与者创建比赛账户 */

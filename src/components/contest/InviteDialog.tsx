@@ -1,6 +1,6 @@
 /**
  * InviteDialog — 发起挑战弹窗
- * 比赛名（1~30字）+ 每人初始资金（1万~1000万）+ 周期（1/3/6/12月）+ 邀请邮箱（1~2 个已注册用户）。
+ * 比赛名（1~30字）+ 每人初始资金（1万~1000万）+ 周期（1/3/6/12月）+ 邀请邮箱（1~4 个已注册用户，含发起人共 5 人）。
  * 被邀请人输入支持好友下拉/关键词搜索：与我同场竞技过的用户自动进入好友列表。
  */
 import { useEffect, useState } from 'react';
@@ -9,6 +9,10 @@ import { contestApi, type Friend } from '../../services/contest-api';
 import { ApiError } from '../../services/http';
 import { MUJI } from '../../theme/muji-theme';
 import { toYuan } from '../../../shared/money';
+
+/** 邀请邮箱输入框数量 = 每场人数上限 - 发起人（与服务端 functions/lib/contest.ts CONTEST_MAX_PARTICIPANTS 保持一致） */
+const MAX_INVITE_FIELDS = 4;
+const SEQ = ['①', '②', '③', '④'];
 
 interface Props {
   open: boolean;
@@ -91,8 +95,7 @@ export default function InviteDialog({ open, onClose, onCreated }: Props) {
   const [name, setName] = useState('');
   const [cash, setCash] = useState('100000');
   const [duration, setDuration] = useState<number>(1);
-  const [email1, setEmail1] = useState('');
-  const [email2, setEmail2] = useState('');
+  const [emails, setEmails] = useState<string[]>(Array.from({ length: MAX_INVITE_FIELDS }, () => ''));
   const [friends, setFriends] = useState<Friend[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [okMsg, setOkMsg] = useState<string | null>(null);
@@ -115,23 +118,24 @@ export default function InviteDialog({ open, onClose, onCreated }: Props) {
     setName('');
     setCash('100000');
     setDuration(1);
-    setEmail1('');
-    setEmail2('');
+    setEmails(Array.from({ length: MAX_INVITE_FIELDS }, () => ''));
     setError(null);
     setOkMsg(null);
   };
 
+  /** 读取全部邀请邮箱（去首尾空格） */
+  const emailsRaw = () => emails.map((e) => e.trim());
+
   const submit = async () => {
     setError(null);
     setOkMsg(null);
-    const cashNum = Number(cash);
-    if (!Number.isFinite(cashNum) || cashNum < 10000 || cashNum > 10000000) {
+    const cashNum = Number(cash);    if (!Number.isFinite(cashNum) || cashNum < 10000 || cashNum > 10000000) {
       setError('每人初始资金需在 1 万 ~ 1000 万元之间');
       return;
     }
-    const emails = [email1.trim(), email2.trim()].filter(Boolean);
+    const emails = emailsRaw().filter(Boolean);
     if (emails.length === 0) {
-      setError('请至少邀请 1 位用户（含发起人共 3 人上限）');
+      setError(`请至少邀请 1 位用户（含发起人共 ${MAX_INVITE_FIELDS + 1} 人上限）`);
       return;
     }
     setSaving(true);
@@ -154,7 +158,7 @@ export default function InviteDialog({ open, onClose, onCreated }: Props) {
     <Dialog open={open} onClose={() => { reset(); onClose(); }} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: '6px' } }}>
       <Box sx={{ p: 3 }}>
         <Typography sx={{ fontSize: 16, fontWeight: 500, color: MUJI.ink, mb: 0.5 }}>发起炒股挑战</Typography>
-        <Typography sx={{ fontSize: 12, color: MUJI.ink3, mb: 2.5 }}>含发起人共 3 人上限；全员确认后当日开赛，进行中比赛每人最多 3 场</Typography>
+        <Typography sx={{ fontSize: 12, color: MUJI.ink3, mb: 2.5 }}>含发起人共 5 人上限；全员确认后当日开赛，进行中比赛每人最多 4 场、最多同时发起 4 场</Typography>
 
         <Typography sx={{ fontSize: 12, color: MUJI.ink3, mb: 0.5 }}>比赛名称</Typography>
         <TextField size="small" fullWidth placeholder="例如：谁是股神·第一弹" value={name} onChange={(e) => setName(e.target.value)} inputProps={{ maxLength: 30 }} sx={{ mb: 2, '& .MuiInputBase-input': { fontSize: 13.5 } }} />
@@ -185,10 +189,17 @@ export default function InviteDialog({ open, onClose, onCreated }: Props) {
         </Box>
 
         <Typography sx={{ fontSize: 12, color: MUJI.ink3, mb: 0.5 }}>
-          被邀请人邮箱（1~2 位已注册用户，可搜索好友）
+          被邀请人邮箱（1~4 位已注册用户，可搜索好友）
         </Typography>
-        <FriendEmailField label="被邀请人邮箱 ①（输入关键词搜好友）" value={email1} onChange={setEmail1} friends={friends} />
-        <FriendEmailField label="被邀请人邮箱 ②（可选，可搜好友）" value={email2} onChange={setEmail2} friends={friends} />
+        {emails.map((val, i) => (
+          <FriendEmailField
+            key={i}
+            label={`被邀请人邮箱 ${SEQ[i]}（${i === 0 ? '输入关键词搜好友' : '可选，可搜好友'}）`}
+            value={val}
+            onChange={(v) => setEmails(emails.map((e, j) => (j === i ? v : e)))}
+            friends={friends}
+          />
+        ))}
         {friends.length === 0 && (
           <Typography sx={{ fontSize: 11, color: MUJI.ink3, mt: -0.75, mb: 1.5 }}>
             好友列表为空：与您同场竞技过的用户会自动出现在这里，也可以直接输入对方邮箱
