@@ -11,6 +11,7 @@ import {
   assertCreatorCreatedQuota,
   CONTEST_INIT_MIN, CONTEST_INIT_MAX, CONTEST_DURATIONS, CONTEST_MAX_OCCUPIED, CONTEST_MAX_PARTICIPANTS, CONTEST_MAX_CREATED,
   type ContestRow,
+  type Standing,
 } from '../../lib/contest';
 import { settleIdleFees, lastSettledTradingDay } from '../../lib/idle-fee';
 import { beijingDateKey, isTradingDay } from '../../../shared/trading-calendar';
@@ -24,11 +25,12 @@ interface ContestListItem {
   standings: Awaited<ReturnType<typeof contestStandings>>;
 }
 
-/** 当日冠军：最近一个「已收市」交易日快照中总资产最高的参赛者（15:05 收盘覆盖快照落定后才计算当日，避免盘中值；含当日游手好闲费影响）。
- *  交易日盘中（当天未到 15:05 核算点）不返回昨日冠军：开市即清空冠军牌，等当天收市核算后再显示；非交易日（周末/假日）保留最近收市冠军 */
-async function dailyWinner(db: PagesContext['env']['DB'], contestId: number) {
-  const now = Date.now();
-  const settledDay = lastSettledTradingDay(now, '15:05'); // 与 daily_snapshots 收盘覆盖时点对齐
+/** 当日冠军：最近一个「已收市」交易日（15:05 收市核算点起）总资产最高的参赛者。
+ *  收市后与周末，实时行情口径=收盘口径，因此直接取实时排行 standings 中 currentTotal 最高者
+ *  （与柱状图同源同值，且已含当日游手好闲费），不再信任可能停留在盘中旧值的心跳快照。
+ *  交易日盘中（当天未到 15:05 核算点）不返回昨日冠军：开市即清空冠军牌，等当天收市核算后再显示 */
+function dailyWinner(standings: Standing[], now: number = Date.now()) {
+  const settledDay = lastSettledTradingDay(now, '15:05'); // 与收市核算时点对齐
   if (!settledDay) {
     return null;
   }
@@ -36,20 +38,18 @@ async function dailyWinner(db: PagesContext['env']['DB'], contestId: number) {
   if (settledDay < todayKey && isTradingDay(todayKey)) {
     return null; // 今天是交易日但尚未收市核算 → 挂牌清空，收市后 settledDay 轮到今天再显示
   }
-  const r = await db
-    .prepare(
-      `SELECT p.user_id, s.date, s.total_assets, COALESCE(NULLIF(u.nickname, ''), u.email) AS nickname, u.avatar
-       FROM contest_participants p
-       JOIN daily_snapshots s ON s.account_id = p.account_id
-       JOIN users u ON u.id = p.user_id
-       WHERE p.contest_id = ?1 AND p.invite_status = 'accepted' AND p.account_id IS NOT NULL AND s.date <= ?2
-         AND s.date = (SELECT MAX(date) FROM daily_snapshots WHERE account_id = p.account_id AND date <= ?2)
-       ORDER BY s.total_assets DESC, p.user_id ASC
-       LIMIT 1`
-    )
-    .bind(contestId as number, settledDay)
-    .first<{ user_id: number; date: string; total_assets: number; nickname: string; avatar: string }>();
-  return r ? { userId: r.user_id, nickname: r.nickname, avatar: r.avatar ?? '', total: r.total_assets, date: r.date } : null;
+  let best: Standing | null = null;
+  for (const s of standings) {
+    if (s.accountId === null || s.currentTotal === null) {
+      continue;
+    }
+    if (best === null || s.currentTotal > best.currentTotal! || (s.currentTotal === best.currentTotal && s.userId < best.userId)) {
+      best = s; // 并列时 userId 小者稳定胜出，保证确定性
+    }
+  }
+  return best
+    ? { userId: best.userId, nickname: best.nickname, avatar: best.avatar ?? '', total: best.currentTotal, date: settledDay }
+    : null;
 }
 
 /** 组装单个比赛的完整视图 */
@@ -70,7 +70,7 @@ async function contestView(db: PagesContext['env']['DB'], contest: ContestRow, c
     createdAt: contest.created_at,
     creator: { userId: creatorId, email: creator?.email ?? '', nickname: creator?.nickname ?? '' },
     participants: standings,
-    dailyWinner: contest.status === 'active' ? await dailyWinner(db, contest.id) : null,
+    dailyWinner: contest.status === 'active' ? dailyWinner(standings) : null,
   };
 }
 
