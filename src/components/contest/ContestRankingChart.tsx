@@ -5,6 +5,7 @@
  * active：柱=当前总资产（按名次降序），tooltip 显示昵称/总资金/昨日盈亏；
  * finished：柱=定格总资产。
  */
+import { useEffect, useState } from 'react';
 import { Box, Button, Typography } from '@mui/material';
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis, ReferenceLine } from 'recharts';
 import { useNavigate } from 'react-router-dom';
@@ -59,9 +60,39 @@ interface AvatarDatum {
 
 const DUR: Record<number, string> = { 1: '1 个月', 3: '3 个月', 6: '半年', 12: '1 年' };
 
+/** 北京时间的"日序号"：把时间戳平移 +8h 后按 UTC 日切分，保证按北京零点为一天的分界 */
+const bjDay = (ts: number): number => Math.floor((ts + 8 * 3600 * 1000) / 86400000);
+
+/** 距比赛结束日的剩余自然日（北京时区）：endDate 为 'YYYY-MM-DD'；非法/为空返回 null 表示不显示倒计时 */
+const daysToEnd = (endDate: string | null | undefined, now: number = Date.now()): number | null => {
+  if (!endDate) return null;
+  const endTs = new Date(`${endDate}T00:00:00+08:00`).getTime();
+  if (Number.isNaN(endTs)) return null;
+  return bjDay(endTs) - bjDay(now);
+};
+
+/** 剩余天数 → 状态行倒计时后缀（自然日口径，每晚 0 点翻牌） */
+const countdownLabel = (days: number): string => {
+  if (days > 1) return ` · 离结束还有 ${days} 天`;
+  if (days === 1) return ' · 离结束还有 1 天';
+  if (days === 0) return ' · 今日收官';
+  return ' · 已到收官日';
+};
+
+/** 轻量时钟：每 60s 跳一次，保证跨零点后 1 分钟内倒计时文案自动刷新（页面轮询刷新亦为双保险） */
+function useNowClock(intervalMs: number = 60_000): number {
+  const [now, setNow] = useState<number>(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), intervalMs);
+    return () => clearInterval(timer);
+  }, [intervalMs]);
+  return now;
+}
+
 export default function ContestRankingChart({ contest }: Props) {
   const navigate = useNavigate();
   const finished = contest.status === 'finished';
+  const now = useNowClock(); // 60s 一跳：跨零点后倒计时文案自动刷新
 
   const ranked = [...contest.participants]
     .filter((p) => p.inviteStatus === 'accepted')
@@ -85,11 +116,15 @@ export default function ContestRankingChart({ contest }: Props) {
     color: colorMap.get(p.userId) ?? BI_FALLBACK,
   }));
 
+  // 剩余自然日基于组件级时钟 now 计算：跨零点后 1 分钟内文案自动刷新（页面轮询刷新为双保险）
+  const daysLeft = contest.status === 'active' ? daysToEnd(contest.endDate, now) : null;
+  const countdown = daysLeft === null ? '' : countdownLabel(daysLeft);
+
   const statusLabel =
     contest.status === 'pending'
       ? '⏳ 等待被邀请人确认'
       : contest.status === 'active'
-        ? `🏁 进行中 · ${contest.startDate ?? ''} ~ ${contest.endDate ?? ''}`
+        ? `🏁 进行中 · ${contest.startDate ?? ''} ~ ${contest.endDate ?? ''}${countdown}`
         : `🏆 已结束 · ${contest.startDate ?? ''} ~ ${contest.endDate ?? ''}`;
 
   /** 柱顶头像渲染：以 viewBox（真实柱子矩形）定位，头像中心恰落在该柱顶边中央（半嵌柱内） */
