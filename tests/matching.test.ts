@@ -152,8 +152,9 @@ function makeRepo(state: MockState): MatchRepo {
     },
     async listPositionsBelowSettle(accountId, today) {
       void accountId;
+      // 与 D1 版条件保持一致：排除当日买入（settled_date = ''），仅结算日早于今日才可解锁
       return Array.from(state.positions.entries())
-        .filter(([, p]) => p.qty > 0 && (p.settled_date === '' || p.settled_date < today))
+        .filter(([, p]) => p.qty > 0 && p.settled_date !== '' && p.settled_date < today)
         .map(([k, p]) => ({
           symbol: k.split(':')[1],
           symbol_name: p.symbol_name,
@@ -436,6 +437,69 @@ describe('T+1 日切 settlePositions', () => {
     await settlePositions(repo, ACCOUNT_ID, '2026-11-03');
     const pos = state.positions.get(`${ACCOUNT_ID}:sh600519`)!;
     expect(pos.available_qty).toBe(50);
+  });
+
+  it('Bug修复回归：当日买入（settled_date=""）不入选日切候选，tick 后仍不可卖', async () => {
+    // 模拟 applyTrade 当日买入落库后的持仓形态：settled_date = ''（T+1 未到）
+    state.positions.set(`${ACCOUNT_ID}:sh600519`, {
+      symbol_name: '贵州茅台',
+      qty: 100,
+      available_qty: 0,
+      frozen_qty: 0,
+      avg_cost: toCents('1685.00'),
+      settled_date: '',
+    });
+    // 同日 tick：修复前 '' 被 (settled_date = '' OR settled_date < today) 命中而当日解锁
+    await settlePositions(repo, ACCOUNT_ID, '2026-11-03');
+    const pos = state.positions.get(`${ACCOUNT_ID}:sh600519`)!;
+    expect(pos.available_qty).toBe(0); // 当日不可卖
+    expect(pos.settled_date).toBe(''); // 未被结算
+  });
+
+  it('昨日买入次日日切：入选候选并解锁为可卖', async () => {
+    // 当日买入
+    state.positions.set(`${ACCOUNT_ID}:sh600519`, {
+      symbol_name: '贵州茅台',
+      qty: 100,
+      available_qty: 0,
+      frozen_qty: 0,
+      avg_cost: toCents('1685.00'),
+      settled_date: '',
+    });
+    await settlePositions(repo, ACCOUNT_ID, '2026-11-03'); // 买入当日：不解锁
+    expect(state.positions.get(`${ACCOUNT_ID}:sh600519`)?.available_qty).toBe(0);
+
+    // 次日（模拟中改为与真实日切后一致的 settled_date）→ 正常进入 T+1 解锁路径
+    state.positions.set(`${ACCOUNT_ID}:sh600519`, {
+      symbol_name: '贵州茅台',
+      qty: 100,
+      available_qty: 0,
+      frozen_qty: 0,
+      avg_cost: toCents('1685.00'),
+      settled_date: '2026-11-03',
+    });
+    await settlePositions(repo, ACCOUNT_ID, '2026-11-04'); // 次日交易日
+    const pos = state.positions.get(`${ACCOUNT_ID}:sh600519`)!;
+    expect(pos.available_qty).toBe(100);
+    expect(pos.settled_date).toBe('2026-11-04');
+  });
+
+  it('遗留 "" 持仓（updated_at 早于今日、从未被结算）修复后保持锁定，等待数据修正', async () => {
+    // 模拟存量数据：2026-11-05 买入后账号再未触发 tick，settled_date 一直是 ''
+    state.positions.set(`${ACCOUNT_ID}:sh600519`, {
+      symbol_name: '贵州茅台',
+      qty: 100,
+      available_qty: 0,
+      frozen_qty: 0,
+      avg_cost: toCents('1685.00'),
+      settled_date: '',
+    });
+    // 十九天后的交易日 tick：修复后不再把 '' 当「待结算」，也不会误当日解锁
+    await settlePositions(repo, ACCOUNT_ID, '2026-11-24');
+    const pos = state.positions.get(`${ACCOUNT_ID}:sh600519`)!;
+    expect(pos.available_qty).toBe(0);
+    expect(pos.settled_date).toBe('');
+    // 该记录需按数据修正方案补写 settled_date 后才能恢复 T+1 正常解锁
   });
 });
 
