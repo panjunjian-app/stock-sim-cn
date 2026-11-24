@@ -45,7 +45,10 @@ export function computeOverview(
 }
 
 /** 持仓合并快照（lastPrice/marketValue/pnl/pnlPct + 当日盈亏 prevClose/dayPnl/dayPnlPct）
- *  当日盈亏 = (最新价 − 昨收) × qty；无行情快照时 prevClose/dayPnl/dayPnlPct 均为 undefined（前端展示「—」） */
+ *  当日盈亏分两部分：昨日持有部分 = (最新价 − 昨收) × 昨持量；今日买入部分 = (最新价 − 摊薄成本) × 今日买入量
+ *  （摊薄成本已含费用摊入，与汇总资金口径近似对齐）。
+ *  当日盈亏比例：有昨持部分时基于昨收计算；全部为今日买入时基于买入成本计算，让用户仍能看到比例。
+ *  无行情快照时 prevClose/dayPnl/dayPnlPct 均为 undefined（前端展示「—」） */
 export function mergePositions(positions: Position[], quotes: Record<StockSymbol, Quote>): Position[] {
   return positions.map((p) => {
     const q = quotes[p.symbol];
@@ -55,9 +58,25 @@ export function mergePositions(positions: Position[], quotes: Record<StockSymbol
     const pnlPct = p.avgCost > 0 ? Number(((pnl / (p.qty * p.avgCost)) * 100).toFixed(2)) : 0;
     // 当日盈亏：仅在有行情快照且昨收有效时可计算
     const prevClose = q ? q.prevClose : undefined;
-    const dayPnl = prevClose !== undefined ? ((lastPrice - prevClose) * p.qty as Cents) : undefined;
-    const dayPnlPct =
-      prevClose !== undefined && prevClose > 0 ? Number((((lastPrice - prevClose) / prevClose) * 100).toFixed(2)) : undefined;
+    let dayPnl: Cents | undefined;
+    let dayPnlPct: number | undefined;
+    if (prevClose !== undefined) {
+      const todayBuyQty = p.todayBuyQty ?? 0;
+      const preHeld = p.qty - todayBuyQty; // 昨日持有量
+      // 昨持部分：现价对昨收（prevClose=0 时按差值算金额，仅比例不可算）
+      dayPnl = ((lastPrice - prevClose) * preHeld) as Cents;
+      if (preHeld > 0 && prevClose > 0) {
+        dayPnlPct = Number((((lastPrice - prevClose) / prevClose) * 100).toFixed(2));
+      }
+      // 今日买入部分：现价对摊薄成本（avgCost 已含费用摊入，与汇总资金口径近似对齐）
+      if (todayBuyQty > 0 && p.avgCost > 0) {
+        dayPnl = (dayPnl + (lastPrice - p.avgCost) * todayBuyQty) as Cents;
+        if (preHeld <= 0) {
+          // 全部为今日买入：无昨收基准，用买入成本作为比例基准
+          dayPnlPct = Number((((lastPrice - p.avgCost) / p.avgCost) * 100).toFixed(2));
+        }
+      }
+    }
     return { ...p, lastPrice, marketValue, pnl, pnlPct, prevClose, dayPnl, dayPnlPct };
   });
 }
