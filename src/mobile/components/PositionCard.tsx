@@ -46,7 +46,18 @@ export default function PositionCard({ position, quote, onTrade, onLiquidate }: 
         <span>可卖 {position.availableQty} 股</span>
       </Box>
 
-      {/* 盈亏 */}
+      {/* 盈亏：当日盈亏（有昨收快照时）+ 浮动盈亏 */}
+      {position.dayPnl !== undefined ? (
+        <Box className="num" sx={{ display: 'flex', alignItems: 'baseline', gap: 1, mt: 0.75, fontSize: 11 }}>
+          <span style={{ color: MUJI.ink3 }}>当日盈亏</span>
+          <span style={{ fontSize: 13, fontWeight: 500, color: pnlColor(position.dayPnl) }}>
+            {formatSignedYuan(position.dayPnl)}
+          </span>
+          {position.dayPnlPct !== undefined && (
+            <span style={{ fontSize: 11.5, color: pnlColor(position.dayPnlPct) }}>{formatPct(position.dayPnlPct)}</span>
+          )}
+        </Box>
+      ) : null}
       <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.5, mt: 0.75 }}>
         <Typography sx={{ fontSize: 11, color: MUJI.ink3 }}>浮动盈亏</Typography>
         <Typography className="num" sx={{ fontSize: 14, fontWeight: 500, color }}>
