@@ -137,7 +137,7 @@ export interface MatchRepo {
   ): Promise<number>;
   /** 当日（北京时间）该账户委托数（含废单），防刷用 */
   countOrdersToday(accountId: number, dayStartIso: string): Promise<number>;
-  /** 日切候选：settled_date < today 的持仓（T+1 解锁） */
+  /** 日切候选：settled_date 非空且 < today 的持仓（T+1 解锁）；'' = 当日买入未到 T+1，不候选 */
   listPositionsBelowSettle(
     accountId: number,
     today: string,
@@ -385,8 +385,10 @@ export function createD1Repo(db: D1Database): MatchRepo {
       return r?.c ?? 0;
     },
     async listPositionsBelowSettle(accountId, today) {
+      // settled_date = '' 表示「当日买入、T+1 未到」，绝不可作为日切候选（否则当日买入即刻解锁）；
+      // 仅结算日期早于今日交易日的持仓才可解锁
       const r = await db
-        .prepare("SELECT * FROM positions WHERE account_id = ?1 AND qty > 0 AND (settled_date = '' OR settled_date < ?2)")
+        .prepare("SELECT * FROM positions WHERE account_id = ?1 AND qty > 0 AND settled_date != '' AND settled_date < ?2")
         .bind(accountId, today)
         .all<{
           symbol: StockSymbol;
@@ -473,7 +475,8 @@ export async function cancelOrder(repo: MatchRepo, orderId: number): Promise<Ord
   return updated as OrderRow;
 }
 
-/** T+1 日切：settled_date < 今日交易日的持仓解锁为可卖（available = qty - frozen） */
+/** T+1 日切：settled_date 非空且 < 今日交易日的持仓解锁为可卖（available = qty - frozen）
+ *  当日买入 settled_date = ''（不可卖），下一个交易日由本函数解锁并写入 settledDate */
 export async function settlePositions(repo: MatchRepo, accountId: number, todayKey?: string): Promise<void> {
   const today = todayKey ?? beijingDateKey();
   if (!isTradingDayTs()) {
