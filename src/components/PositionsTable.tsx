@@ -10,7 +10,7 @@ export interface PositionsTableProps {
   onQuickOrder: (input: Pick<OrderInput, 'symbol' | 'side'>, position: Position) => void;
 }
 
-const HEADERS = ['股票名称 / 代码', '持仓数量', '可卖数量', '成本价', '现价', '盈亏（元）', '盈亏比例', '操作'];
+const HEADERS = ['股票名称 / 代码', '持仓数量', '可卖数量', '成本价', '现价', '当日盈亏', '当日盈亏比例', '盈亏（元）', '盈亏比例', '操作'];
 
 /** PositionsTable — 持仓明细（行内买/卖快捷按钮，T+1 可卖提示） */
 export default function PositionsTable({ positions, onQuickOrder }: PositionsTableProps) {
@@ -27,7 +27,7 @@ export default function PositionsTable({ positions, onQuickOrder }: PositionsTab
         <TableHead>
           <TableRow>
             {HEADERS.map((h, i) => (
-              <TableCell key={h} align={i === 0 ? 'left' : 'right'} sx={{ pl: i === 0 ? 3.25 : 2.25, pr: 2.25 }}>
+              <TableCell key={h} align={i === 0 ? 'left' : 'right'} sx={{ pl: i === 0 ? 3.25 : 1.75, pr: 1.75, whiteSpace: 'nowrap' }}>
                 {h}
               </TableCell>
             ))}
@@ -53,6 +53,20 @@ export default function PositionsTable({ positions, onQuickOrder }: PositionsTab
               <TableCell align="right" className="num">{formatYuan(p.avgCost)}</TableCell>
               <TableCell align="right" className="num">
                 <PnlText value={p.lastPrice - p.avgCost} text={formatYuan(p.lastPrice)} />
+              </TableCell>
+              <TableCell align="right" className="num">
+                {p.dayPnl !== undefined ? (
+                  <PnlText value={p.dayPnl} text={formatSignedYuan(p.dayPnl)} />
+                ) : (
+                  <Typography component="span" sx={{ color: MUJI.ink3 }}>—</Typography>
+                )}
+              </TableCell>
+              <TableCell align="right" className="num">
+                {p.dayPnlPct !== undefined ? (
+                  <PnlText value={p.dayPnlPct} text={formatPct(p.dayPnlPct)} />
+                ) : (
+                  <Typography component="span" sx={{ color: MUJI.ink3 }}>—</Typography>
+                )}
               </TableCell>
               <TableCell align="right" className="num">
                 <PnlText value={p.pnl} text={formatSignedYuan(p.pnl)} />
