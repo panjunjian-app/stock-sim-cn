@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Snackbar, Typography } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import type { CashFlow, Order, Position, Quote, Symbol as StockSymbol, Trade } from '../../../shared/types';
+import type { CashFlow, Order, Position, Quote, Symbol as StockSymbol, TodayRealized, Trade } from '../../../shared/types';
 import { formatYuanSymbol } from '../../../shared/money';
 import { MUJI } from '../../theme/muji-theme';
 import { accountApi } from '../../services/account-api';
@@ -19,6 +19,7 @@ import { useQuoteStore } from '../../store/quote-store';
 import MarketStatusBanner from '../../components/MarketStatusBanner';
 import AssetSummaryGrid from '../components/AssetSummaryGrid';
 import PositionCard from '../components/PositionCard';
+import PositionsDayPnlSummary from '../components/PositionsDayPnlSummary';
 import OrderCard from '../components/OrderCard';
 import { CashFlowRecordList, TradeRecordList } from '../components/RecordCardList';
 import SegmentedControl from '../components/SegmentedControl';
@@ -53,6 +54,8 @@ export default function AccountDetailMobilePage() {
 
   const [base, setBase] = useState<OverviewBaseState | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
+  /** 今日卖出已实现（补齐持仓卡片不展示的清仓部分，用于合计条与汇总对齐） */
+  const [todayRealized, setTodayRealized] = useState<TodayRealized>({ dayPnl: 0, items: [] });
   const [orders, setOrders] = useState<Order[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [flows, setFlows] = useState<CashFlow[]>([]);
@@ -70,7 +73,7 @@ export default function AccountDetailMobilePage() {
       return;
     }
     try {
-      const [{ overview }, { positions: ps }, { orders: os }, { trades: ts }, { cashFlows: fs }] = await Promise.all([
+      const [{ overview }, { positions: ps, todayRealized: realized }, { orders: os }, { trades: ts }, { cashFlows: fs }] = await Promise.all([
         accountApi.getOverview(accountId),
         accountApi.getPositions(accountId),
         accountApi.getOrders(accountId),
@@ -79,6 +82,7 @@ export default function AccountDetailMobilePage() {
       ]);
       setBase(overview);
       setPositions(ps);
+      setTodayRealized(realized ?? { dayPnl: 0, items: [] });
       setOrders(os);
       setTrades(ts);
       setFlows(fs);
@@ -207,11 +211,11 @@ export default function AccountDetailMobilePage() {
 
         {/* 持仓卡片流 */}
         {tab === 'positions' && (
-          mergedPositions.length === 0 ? (
-            <Typography sx={{ py: 4, textAlign: 'center', fontSize: 12.5, color: MUJI.ink3 }}>暂无持仓，去行情页挑选第一只股票吧</Typography>
-          ) : (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-              {mergedPositions.map((p) => (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+            {mergedPositions.length === 0 ? (
+              <Typography sx={{ py: 4, textAlign: 'center', fontSize: 12.5, color: MUJI.ink3 }}>暂无持仓，去行情页挑选第一只股票吧</Typography>
+            ) : (
+              mergedPositions.map((p) => (
                 <PositionCard
                   key={p.symbol}
                   position={p}
@@ -219,12 +223,16 @@ export default function AccountDetailMobilePage() {
                   onTrade={() => navigate(`/order/${p.symbol}`)}
                   onLiquidate={() => setLiquidateTarget(p)}
                 />
-              ))}
+              ))
+            )}
+            {/* 合计条：持仓当日盈亏 + 今日卖出已实现 → 合计当日盈亏（与顶部汇总同口径） */}
+            <PositionsDayPnlSummary positions={mergedPositions} todayRealized={todayRealized} />
+            {mergedPositions.length > 0 && (
               <Typography sx={{ fontSize: 10.5, color: MUJI.ink3, lineHeight: 1.8 }}>
                 ＊ 可卖数量 = 0 表示今日买入，受 A股 T+1 规则限制，次一交易日方可卖出
               </Typography>
-            </Box>
-          )
+            )}
+          </Box>
         )}
 
         {/* 委托卡片流 */}

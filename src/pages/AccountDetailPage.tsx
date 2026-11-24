@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Box, Button, Tab, Tabs, Typography } from '@mui/material';
-import type { CashFlow, Order, OrderInput, Position, Quote, Symbol as StockSymbol, Trade } from '../../shared/types';
+import type { CashFlow, Order, OrderInput, Position, Quote, Symbol as StockSymbol, TodayRealized, Trade } from '../../shared/types';
 import { formatPct, formatSignedYuan, formatYuanSymbol } from '../../shared/money';
 import { computeOverview, mergePositions } from '../utils/overview';
 import { accountApi } from '../services/account-api';
@@ -36,6 +36,8 @@ export default function AccountDetailPage() {
 
   const [base, setBase] = useState<OverviewBaseState | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
+  /** 今日卖出已实现（补齐持仓表不展示的清仓部分，用于底部合计条与汇总对齐） */
+  const [todayRealized, setTodayRealized] = useState<TodayRealized>({ dayPnl: 0, items: [] });
   const [orders, setOrders] = useState<Order[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [flows, setFlows] = useState<CashFlow[]>([]);
@@ -50,7 +52,7 @@ export default function AccountDetailPage() {
       return;
     }
     try {
-      const [{ overview }, { positions: ps }, { orders: os }, { trades: ts }, { cashFlows: fs }] = await Promise.all([
+      const [{ overview }, { positions: ps, todayRealized: realized }, { orders: os }, { trades: ts }, { cashFlows: fs }] = await Promise.all([
         accountApi.getOverview(accountId),
         accountApi.getPositions(accountId),
         accountApi.getOrders(accountId),
@@ -59,6 +61,7 @@ export default function AccountDetailPage() {
       ]);
       setBase(overview);
       setPositions(ps);
+      setTodayRealized(realized ?? { dayPnl: 0, items: [] });
       setOrders(os);
       setTrades(ts);
       setFlows(fs);
@@ -190,7 +193,7 @@ export default function AccountDetailPage() {
 
       {/* Tab 内容 */}
       {tab === 'positions' && (
-        <PositionsTable positions={mergedPositions} onQuickOrder={(input) => handleQuickOrder(input)} />
+        <PositionsTable positions={mergedPositions} todayRealized={todayRealized} onQuickOrder={(input) => handleQuickOrder(input)} />
       )}
       {tab === 'orders' && <OrdersTable orders={orders} onChanged={() => void loadAll()} />}
       {tab === 'trades' && <TradesTable trades={trades} />}

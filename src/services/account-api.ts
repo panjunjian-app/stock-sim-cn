@@ -5,7 +5,7 @@ import type {
   CashFlow,
   Order,
   OrderInput,
-  Position,
+  PositionsResponse,
   Symbol as StockSymbol,
   Trade,
 } from '../../shared/types';
@@ -46,7 +46,8 @@ export const accountApi = {
   deposit(id: number, amount: number): Promise<{ cashFlow: CashFlow }> {
     return apiPost(`/api/accounts/${id}/deposit`, { amount });
   },
-  getPositions(id: number): Promise<{ positions: Position[] }> {
+  /** 持仓 + 今日卖出已实现（持仓表底部合计条的补齐口径） */
+  getPositions(id: number): Promise<PositionsResponse> {
     return apiGet(`/api/accounts/${id}/positions`);
   },
   getOrders(id: number, status?: string): Promise<{ orders: Order[] }> {

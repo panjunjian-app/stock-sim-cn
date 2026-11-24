@@ -112,12 +112,51 @@ export interface Position {
   pnlPct: number;
   /** 今日买入量（股）；后端 positions 接口返回，今日无买入为 0（用于当日盈亏成本口径） */
   todayBuyQty?: number;
+  /**
+   * 今日买入实际净额（分，trades.net_amount 之和，买入为负值，已含佣金/过户费）。
+   * 今日买入部分的当日盈亏成本基准：lastPrice × todayBuyQty + todayBuyNet（整数分、精确无舍入）。
+   * 为何不用摊薄 avgCost：卖出不重算 avgCost（均价法，对剩余持仓正确），但若今日「加仓 + 卖老仓」，
+   * avgCost 仍含已卖出老仓的成本，拿它算今日新买部分会失真（实测偏差可达千元级）。
+   * 旧响应无此字段时前端退回 avgCost 口径。
+   */
+  todayBuyNet?: Cents;
   /** 昨收价（分）；由前端 mergePositions 合并快照计算；无行情快照时为 undefined */
   prevClose?: Cents;
   /** 当日盈亏 = (lastPrice − prevClose) × qty；无行情快照时为 undefined（展示「—」） */
   dayPnl?: Cents;
   /** 当日盈亏比例（%）；prevClose 无效（≤0）或无快照时为 undefined */
   dayPnlPct?: number;
+}
+
+/**
+ * 今日卖出已实现盈亏 · 单只明细
+ * 持仓表只列 qty>0 的股票，今日卖出（尤其清仓）部分的当日盈亏不在明细行里，
+ * 此结构用于把该部分补到持仓表底部合计条，使明细合计与顶部汇总（资金口径）对齐。
+ */
+export interface TodayRealizedItem {
+  symbol: Symbol;
+  symbolName: string;
+  /** 今日卖出股数 */
+  sellQty: number;
+  /** 该股今日已实现盈亏（分）= 卖出净额（已扣三费）− 昨收 × 卖出股数；取不到昨收时为 null */
+  dayPnl: Cents | null;
+}
+
+/** 今日卖出部分「当日已实现盈亏」汇总（资金口径缺口补齐用） */
+export interface TodayRealized {
+  /** 今日卖出合计已实现盈亏（分，已含费用）；今日无卖出为 0；行情缺失无法计算为 null */
+  dayPnl: Cents | null;
+  /** 单只明细，按盈亏从高到低（不可计算项排末尾） */
+  items: TodayRealizedItem[];
+  /** 行情降级（部分/全部标的取不到昨收，明细项 dayPnl 为 null）时为 true */
+  degraded?: boolean;
+}
+
+/** GET /api/accounts/:id/positions 响应 */
+export interface PositionsResponse {
+  positions: Position[];
+  /** 今日卖出已实现部分（持仓表不展示的清仓收益） */
+  todayRealized: TodayRealized;
 }
 
 /** 账户总览（后端只给现金与累计入金基础值；市值/总资产/盈亏由前端合并快照计算） */

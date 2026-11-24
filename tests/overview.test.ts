@@ -4,6 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { mergePositions } from '../src/utils/overview';
+import { summarizeDayPnl } from '../shared/today-realized';
 import type { Position, Quote, Symbol as StockSymbol } from '../shared/types';
 
 function makePosition(overrides: Partial<Position> = {}): Position {
@@ -102,5 +103,78 @@ describe('mergePositions 当日盈亏', () => {
     );
     expect(p.dayPnl).toBe(0); // preHeld=0 且 avgCost=0 跳过成本部分 → 0
     expect(p.dayPnlPct).toBeUndefined(); // 全为今买但 avgCost 无效 → 无比例基准，显示「—」
+  });
+});
+
+/**
+ * 场景 F（QA 实测偏差 ¥1152）：同一标的今日「加仓 + 卖老仓」
+ * 持仓表当日盈亏必须用「今日买入实际净额」作成本基准，不能用摊薄 avgCost
+ * （卖出不重算 avgCost 属均价法，对剩余持仓正确，但会让今日新买部分盈亏失真）。
+ * 数据取 QA 实测：sz000001 现价 12.30 / 昨收 12.34；昨持 1000 股、今买 1000 股、今卖 1000 股。
+ */
+describe('mergePositions 今日加仓 + 卖老仓（成本基准口径）', () => {
+  const SZ = { symbol: 'sz000001' as StockSymbol, symbolName: '平安银行' } as const;
+  const quote = makeQuote({ symbol: 'sz000001' as StockSymbol, price: 1230, prevClose: 1234 });
+
+  it('今日买入部分按「今买净额」计成本：加仓后卖光老仓，当日盈亏 = −5.13 元（旧口径为 +1147.44）', () => {
+    // 昨持 1000 股（成本 10.00 元/股）+ 今买 1000 股（净额 −1,230,513 分，含费 5.13 元）→ 摊薄 11.152565
+    // 今卖 1000 股老仓后：持仓 1000 股（全部为今日买入），今买净额 −1,230,513 分
+    const [p] = mergePositions(
+      [{ ...makePosition({ ...SZ, qty: 1000, avgCost: 1115.2565, todayBuyQty: 1000 }), todayBuyNet: -1_230_513 }],
+      { sz000001: quote },
+    );
+    // 12.30 × 1000 − 1,230,513 = −513 分 = −5.13 元（每股净成本 12.30513，现价 12.30）
+    expect(p.dayPnl).toBe(-513);
+    expect(p.dayPnlPct).toBe(-0.04); // (12.30 − 12.30513) / 12.30513 ≈ −0.0417%
+  });
+
+  it('合计当日盈亏与资金口径 KPI 严格相等（QA 场景 F：−56.41 元）', () => {
+    const merged = mergePositions(
+      [{ ...makePosition({ ...SZ, qty: 1000, avgCost: 1115.2565, todayBuyQty: 1000 }), todayBuyNet: -1_230_513 }],
+      { sz000001: quote },
+    );
+    // 今日卖出已实现 = 卖出净额 1,228,872 − 昨收 12.34 × 1000 = −5,128 分
+    const summary = summarizeDayPnl(merged, {
+      dayPnl: -5128,
+      items: [{ symbol: 'sz000001' as StockSymbol, symbolName: '平安银行', sellQty: 1000, dayPnl: -5128 }],
+    });
+    expect(summary.holdings).toBe(-513);
+    expect(summary.total).toBe(-5641); // −56.41 元 = 顶部 KPI（资金口径）
+    // 资金口径独立验算：现价×持仓 + 今买净额 + 今卖净额 − 昨收×昨持 = −5,641 分
+    const kpi = 1230 * 1000 + -1_230_513 + 1_228_872 - 1234 * 1000;
+    expect(kpi).toBe(-5641);
+    expect(summary.total).toBe(kpi);
+  });
+
+  it('部分卖出（昨持 1000 / 今买 1000 / 今卖 500）：昨持余量按昨收、今买按净额，合计仍等于资金口径', () => {
+    const merged = mergePositions(
+      [{ ...makePosition({ ...SZ, qty: 1500, avgCost: 1115.2565, todayBuyQty: 1000 }), todayBuyNet: -1_230_513 }],
+      { sz000001: quote },
+    );
+    // 昨持余 500 股：(12.30 − 12.34) × 500 = −2,000 分；今买部分 −513 分 → −2,513 分
+    expect(merged[0].dayPnl).toBe(-2513);
+    const summary = summarizeDayPnl(merged, {
+      dayPnl: -2564, // 卖 500 股净额 614,436 − 12.34 × 500
+      items: [{ symbol: 'sz000001' as StockSymbol, symbolName: '平安银行', sellQty: 500, dayPnl: -2564 }],
+    });
+    const kpi = 1230 * 1500 + -1_230_513 + 614_436 - 1234 * 1000;
+    expect(summary.total).toBe(kpi);
+  });
+
+  it('今买净额优先于摊薄成本：即使 avgCost 被老仓大幅拉低也不受影响', () => {
+    // 老仓成本 5.00 元把摊薄成本拉到 8.65，若用 avgCost 会虚增 ~3650 元盈亏
+    const [p] = mergePositions(
+      [{ ...makePosition({ ...SZ, qty: 1000, avgCost: 865.2565, todayBuyQty: 1000 }), todayBuyNet: -1_230_513 }],
+      { sz000001: quote },
+    );
+    expect(p.dayPnl).toBe(-513); // 与 avgCost 无关
+  });
+
+  it('旧响应缺 todayBuyNet：退回摊薄成本口径（兼容），不报错', () => {
+    const [p] = mergePositions(
+      [makePosition({ ...SZ, qty: 1000, avgCost: 1115.2565, todayBuyQty: 1000 })],
+      { sz000001: quote },
+    );
+    expect(p.dayPnl).toBeCloseTo(114_743.5, 1); // (12.30 − 11.152565) × 1000 = +1,147.435 元
   });
 });
