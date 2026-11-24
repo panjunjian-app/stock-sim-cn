@@ -110,6 +110,8 @@ export interface Position {
   marketValue: Cents;
   pnl: Cents;
   pnlPct: number;
+  /** 今日买入量（股）；后端 positions 接口返回，今日无买入为 0（用于当日盈亏成本口径） */
+  todayBuyQty?: number;
   /** 昨收价（分）；由前端 mergePositions 合并快照计算；无行情快照时为 undefined */
   prevClose?: Cents;
   /** 当日盈亏 = (lastPrice − prevClose) × qty；无行情快照时为 undefined（展示「—」） */
