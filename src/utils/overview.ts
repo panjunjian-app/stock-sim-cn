@@ -45,12 +45,16 @@ export function computeOverview(
 }
 
 /** 持仓合并快照（lastPrice/marketValue/pnl/pnlPct + 当日盈亏 prevClose/dayPnl/dayPnlPct）
- *  当日盈亏分两部分：昨日持有部分 = (最新价 − 昨收) × 昨持量；今日买入部分 = 最新价 × 今日买入量 + 今日买入净额
- *  （= (最新价 − 今日买入每股净成本) × 今日买入量，整数分精确、已含费用，与资金口径严格对齐）。
+ *  当日盈亏 = (最新价 − 昨收) × 昨持未卖量 + 最新价 × 今买未卖量 + 今买未卖净额
+ *  （后两项 = (最新价 − 今买每股净成本) × 今买未卖量，整数分精确、已含费用，与资金口径严格对齐）。
+ *  昨持未卖量取后端 prevHeldQty（由 shared/today-realized.splitDayPnlPosition 精确拆分），
+ *  缺省时退回 max(qty − todayBuyQty, 0)。
  *  为何今日买入部分不用摊薄 avgCost：卖出不重算 avgCost（均价法，对剩余持仓正确），
  *  但今日「加仓 + 卖老仓」时 avgCost 仍含已卖出老仓的成本，会使今日新买部分盈亏失真；
  *  旧接口响应无 todayBuyNet 时退回 avgCost 口径（兼容）。
- *  当日盈亏比例：有昨持部分时基于昨收计算；全部为今日买入时基于今日买入净成本计算。
+ *  T+0 存量数据（当天买当天卖，早于 T+1 修复）：后端已把「今买且未卖」的股数与净额拆出，
+ *  已卖出份额的成本进入「今日卖出已实现」，故本函数不会重复计算。
+ *  当日盈亏比例：有昨持部分时基于昨收计算；全部为今买未卖时基于今买净成本计算。
  *  无行情快照时 prevClose/dayPnl/dayPnlPct 均为 undefined（前端展示「—」） */
 export function mergePositions(positions: Position[], quotes: Record<StockSymbol, Quote>): Position[] {
   return positions.map((p) => {
@@ -65,19 +69,19 @@ export function mergePositions(positions: Position[], quotes: Record<StockSymbol
     let dayPnlPct: number | undefined;
     if (prevClose !== undefined) {
       const todayBuyQty = p.todayBuyQty ?? 0;
-      // 昨日持有量 = 持仓 − 今日买入量（A股 T+1：今日卖出只能来自昨持，故此拆分恒非负）
-      const preHeld = Math.max(p.qty - todayBuyQty, 0);
+      // 昨持未卖量：优先用后端精确拆分值；缺省退回 q1 − 今买量（A股 T+1 下二者一致）
+      const prevHeld = p.prevHeldQty != null ? Math.max(Math.round(p.prevHeldQty), 0) : Math.max(p.qty - todayBuyQty, 0);
       // 昨持部分：现价对昨收（prevClose=0 时按差值算金额，仅比例不可算）
-      dayPnl = ((lastPrice - prevClose) * preHeld) as Cents;
-      if (preHeld > 0 && prevClose > 0) {
+      dayPnl = ((lastPrice - prevClose) * prevHeld) as Cents;
+      if (prevHeld > 0 && prevClose > 0) {
         dayPnlPct = Number((((lastPrice - prevClose) / prevClose) * 100).toFixed(2));
       }
-      // 今日买入部分：最新价 × 今买量 + 今买净额（净额为负值，已含费用）
+      // 今买未卖部分：最新价 × 今买未卖量 + 今买未卖净额（净额为负值，已含费用）
       if (todayBuyQty > 0) {
         const todayBuyNet = p.todayBuyNet;
         if (todayBuyNet != null && Number.isFinite(todayBuyNet)) {
           dayPnl = (dayPnl + lastPrice * todayBuyQty + todayBuyNet) as Cents;
-          if (preHeld <= 0) {
+          if (prevHeld <= 0) {
             const costPerShare = -todayBuyNet / todayBuyQty; // 每股净成本（含费用）
             if (costPerShare > 0) {
               dayPnlPct = Number((((lastPrice - costPerShare) / costPerShare) * 100).toFixed(2));
@@ -86,7 +90,7 @@ export function mergePositions(positions: Position[], quotes: Record<StockSymbol
         } else if (p.avgCost > 0) {
           // 兼容旧接口响应（无 todayBuyNet）：退回摊薄成本口径
           dayPnl = (dayPnl + (lastPrice - p.avgCost) * todayBuyQty) as Cents;
-          if (preHeld <= 0) {
+          if (prevHeld <= 0) {
             // 全部为今日买入：无昨收基准，用买入成本作为比例基准
             dayPnlPct = Number((((lastPrice - p.avgCost) / p.avgCost) * 100).toFixed(2));
           }

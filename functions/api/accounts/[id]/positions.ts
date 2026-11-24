@@ -3,7 +3,8 @@ import { requireAuth } from '../../../lib/auth';
 import { listPositions, requireOwnedAccount } from '../../../lib/account-service';
 import { marketData } from '../../../lib/market-data';
 import { beijingDateKey, beijingToTs } from '../../../../shared/trading-calendar';
-import { computeTodayRealized } from '../../../../shared/today-realized';
+import { computeTodayRealized, splitDayPnlPosition } from '../../../../shared/today-realized';
+import type { DayPnlSplit } from '../../../../shared/today-realized';
 import type { Symbol as StockSymbol } from '../../../../shared/types';
 import type { SymbolQuoteMeta, TodaySellAggregate } from '../../../../shared/today-realized';
 import type { PagesContext } from '../../../lib/env';
@@ -83,10 +84,13 @@ async function fetchPrevCloseMeta(
 }
 
 /**
- * GET /api/accounts/:id/positions — 持仓列表（不含实时价，前端合并快照；附今日买入量供当日盈亏成本口径）
+ * GET /api/accounts/:id/positions — 持仓列表（不含实时价，前端合并快照）
  *
- * 同时返回 todayRealized（今日卖出已实现盈亏）：持仓表只列 qty>0 的股票，今日卖出/清仓部分的
- * 当日盈亏不在明细里，需在接口层补出，前端才能把「明细合计」与顶部汇总（资金口径）对齐。
+ * 每行附带 prevHeldQty / todayBuyQty / todayBuyNet（「昨持未卖 / 今买未卖 / 今买未卖净额」精确拆分），
+ * 前端据此计算当日盈亏；同时返回 todayRealized（今日卖出已实现盈亏）：
+ * 持仓表只列 qty>0 的股票，今日卖出/清仓部分的当日盈亏不在明细里，需在接口层补出，
+ * 前端才能把「明细合计」与顶部汇总（资金口径）对齐。
+ * 拆分口径与恒等式见 shared/today-realized.ts 顶部注释（含 T+0 存量数据场景）。
  */
 export const onRequestGet = async (ctx: PagesContext<Params>): Promise<Response> => {
   try {
@@ -110,7 +114,6 @@ export const onRequestGet = async (ctx: PagesContext<Params>): Promise<Response>
     // 不能用摊薄 avgCost —— 卖出不重算 avgCost（均价法），今日「加仓 + 卖老仓」时 avgCost 仍含
     // 已卖出老仓的成本，会让今日新买部分盈亏失真。
     const buyNetBySymbol = new Map<string, number>(buyRows.map((r) => [r.symbol, r.buy_net]));
-
     // 今日卖出（含已清仓标的）：卖出净额已扣三费，故已实现盈亏天然含费用
     const sellRows =
       (
@@ -126,6 +129,26 @@ export const onRequestGet = async (ctx: PagesContext<Params>): Promise<Response>
       sellQty: r.sell_qty,
       sellNet: r.sell_net,
     }));
+    const sellQtyBySymbol = new Map<string, number>(sellRows.map((r) => [r.symbol, r.sell_qty]));
+    const sellNetBySymbol = new Map<string, number>(sellRows.map((r) => [r.symbol, r.sell_net]));
+    const holdQtyBySymbol = new Map<string, number>(positions.map((p) => [p.symbol, p.qty]));
+
+    /** 单只标的「昨持 / 今买 / 已卖」精确拆分（T+0 存量数据兜底，见 shared/today-realized） */
+    const splitFor = (symbol: string): DayPnlSplit =>
+      splitDayPnlPosition({
+        holdQty: holdQtyBySymbol.get(symbol) ?? 0,
+        todayBuyQty: buyQtyBySymbol.get(symbol) ?? 0,
+        todayBuyNet: buyNetBySymbol.get(symbol) ?? 0,
+        todaySellQty: sellQtyBySymbol.get(symbol) ?? 0,
+        todaySellNet: sellNetBySymbol.get(symbol) ?? 0,
+      });
+
+    // 卖出聚合行补上持仓/今买信息，供 computeTodayRealized 走精确分支
+    for (const row of sellAggregates) {
+      row.holdQty = holdQtyBySymbol.get(row.symbol) ?? 0;
+      row.todayBuyQty = buyQtyBySymbol.get(row.symbol) ?? 0;
+      row.todayBuyNet = buyNetBySymbol.get(row.symbol) ?? 0;
+    }
     // 无卖出时不请求行情（保持接口轻量）
     const quoteMeta =
       sellAggregates.length > 0
@@ -134,20 +157,26 @@ export const onRequestGet = async (ctx: PagesContext<Params>): Promise<Response>
     const todayRealized = computeTodayRealized(sellAggregates, quoteMeta);
 
     return ok({
-      positions: positions.map((p) => ({
-        symbol: p.symbol,
-        symbolName: p.symbol_name,
-        qty: p.qty,
-        availableQty: p.available_qty,
-        frozenQty: p.frozen_qty,
-        avgCost: p.avg_cost,
-        todayBuyQty: buyQtyBySymbol.get(p.symbol) ?? 0,
-        todayBuyNet: buyNetBySymbol.get(p.symbol) ?? 0,
-        lastPrice: 0,
-        marketValue: 0,
-        pnl: 0,
-        pnlPct: 0,
-      })),
+      positions: positions.map((p) => {
+        // 拆分后返回「昨持未卖 q0r / 今买未卖 tbr / 今买未卖净额 NB_r」，
+        // 让前端当日盈亏公式在 T+0 存量数据下也不重复计算已卖出的今买份额
+        const split = splitFor(p.symbol);
+        return {
+          symbol: p.symbol,
+          symbolName: p.symbol_name,
+          qty: p.qty,
+          availableQty: p.available_qty,
+          frozenQty: p.frozen_qty,
+          avgCost: p.avg_cost,
+          prevHeldQty: split.prevHeldRemainQty,
+          todayBuyQty: split.todayBuyRemainQty,
+          todayBuyNet: split.todayBuyRemainNet,
+          lastPrice: 0,
+          marketValue: 0,
+          pnl: 0,
+          pnlPct: 0,
+        };
+      }),
       todayRealized,
     });
   } catch (err) {

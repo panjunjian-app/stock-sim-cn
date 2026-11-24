@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { mergePositions } from '../src/utils/overview';
-import { summarizeDayPnl } from '../shared/today-realized';
+import { computeTodayRealized, splitDayPnlPosition, summarizeDayPnl } from '../shared/today-realized';
 import type { Position, Quote, Symbol as StockSymbol } from '../shared/types';
 
 function makePosition(overrides: Partial<Position> = {}): Position {
@@ -176,5 +176,132 @@ describe('mergePositions 今日加仓 + 卖老仓（成本基准口径）', () =
       { sz000001: quote },
     );
     expect(p.dayPnl).toBeCloseTo(114_743.5, 1); // (12.30 − 11.152565) × 1000 = +1,147.435 元
+  });
+});
+
+/**
+ * T+0 存量数据（当天买、当天卖，成交早于 T+1 修复 9b307bf 上生产）：
+ * 生产账户 22「sh603324 盛剑科技」今日 buy 2000 @29.72（NB = −5,945,546 分）、
+ * sell 1500 @31.18（NS = +4,673,444 分）→ 持仓 500；现价 29.34（2934 分）。
+ * 旧公式把 2000 股都算进持仓行 → 已卖出的 1500 股被「持仓行 + 已实现」重复计算 1,710 元。
+ * 新公式（后端精确拆出 q0r / tbr / NB_r）：
+ *   持仓行 = price×tbr + NB_r = 2934×500 − 1,486,386 = −19,386 分
+ *   已实现 = NS + NB_sold = 4,673,444 − 4,459,160 = 214,284 分
+ *   合计   = 194,898 分 = price×q1 + NB + NS − pc×q0（资金口径真值，0 分差）
+ */
+describe('mergePositions T+0 存量数据（当天买 + 当天卖）', () => {
+  const T0 = { symbol: 'sh603324' as StockSymbol, symbolName: '盛剑科技' } as const;
+  const quote = makeQuote({ symbol: 'sh603324' as StockSymbol, price: 2934, prevClose: 3000 });
+
+  it('qS > q0：持仓行只计剩余今买份额（tbr=500），603324 实测 −19,386 分', () => {
+    const [p] = mergePositions(
+      [
+        {
+          ...makePosition({ ...T0, qty: 500, avgCost: 2972.773, todayBuyQty: 500 }),
+          todayBuyNet: -1_486_386,
+          prevHeldQty: 0, // 昨持已被今日卖光
+        },
+      ],
+      { sh603324: quote },
+    );
+    expect(p.dayPnl).toBe(-19_386); // 2934×500 − 1,486,386
+    expect(p.dayPnlPct).toBe(-1.3); // (29.34 − 29.72773) / 29.72773 ≈ −1.30%
+  });
+
+  it('T+0 + 已实现：合计当日盈亏 ≡ 资金口径真值（194,898 分，0 分差）', () => {
+    const merged = mergePositions(
+      [
+        {
+          ...makePosition({ ...T0, qty: 500, avgCost: 2972.773, todayBuyQty: 500 }),
+          todayBuyNet: -1_486_386,
+          prevHeldQty: 0,
+        },
+      ],
+      { sh603324: quote },
+    );
+    const realized = 4_673_444 + -4_459_160; // NS + NB_sold
+    const summary = summarizeDayPnl(merged, {
+      dayPnl: realized,
+      items: [{ symbol: 'sh603324' as StockSymbol, symbolName: '盛剑科技', sellQty: 1500, dayPnl: realized }],
+    });
+    expect(summary.holdings).toBe(-19_386);
+    expect(summary.realized).toBe(214_284);
+    expect(summary.total).toBe(194_898);
+    // 独立验算：price×q1 + NB + NS − pc×q0
+    const truth = 2934 * 500 + -5_945_546 + 4_673_444 - 3000 * 0;
+    expect(truth).toBe(194_898);
+    expect(summary.total).toBe(truth);
+  });
+
+  it('恒等式（多场景）：Σ持仓行 + 已实现 ≡ price×q1 + NB + NS − pc×q0', () => {
+    // 6 个场景：正常 T+1 / 加仓卖老仓 / 部分卖出 / 全清仓 / T+0 残留 / 完全 T+0 清仓
+    interface Case {
+      name: string;
+      q0: number; // 昨持（股）
+      qB: number;
+      NB: number;
+      qS: number;
+      NS: number;
+      q1: number;
+      pc: number;
+      price: number;
+    }
+    const cases: Case[] = [
+      { name: '正常 T+1（今卖全来自昨持）', q0: 1000, qB: 0, NB: 0, qS: 400, NS: 492_000, q1: 600, pc: 1234, price: 1230 },
+      { name: '加仓 + 卖老仓（场景 F）', q0: 1000, qB: 1000, NB: -1_230_513, qS: 1000, NS: 1_228_872, q1: 1000, pc: 1234, price: 1230 },
+      { name: '部分卖出（场景 G）', q0: 1000, qB: 1000, NB: -1_230_513, qS: 500, NS: 614_436, q1: 1500, pc: 1234, price: 1230 },
+      { name: '全清仓无持仓（场景 C）', q0: 1000, qB: 0, NB: 0, qS: 1000, NS: 1_228_872, q1: 0, pc: 1234, price: 1230 },
+      { name: 'T+0 残留（603324）', q0: 0, qB: 2000, NB: -5_945_546, qS: 1500, NS: 4_673_444, q1: 500, pc: 3000, price: 2934 },
+      { name: '完全 T+0 清仓', q0: 0, qB: 1000, NB: -1_230_513, qS: 1000, NS: 1_228_872, q1: 0, pc: 1234, price: 1230 },
+    ];
+
+    for (const c of cases) {
+      const split = splitDayPnlPosition({
+        holdQty: c.q1,
+        todayBuyQty: c.qB,
+        todayBuyNet: c.NB,
+        todaySellQty: c.qS,
+        todaySellNet: c.NS,
+      });
+      // 拆分守恒
+      expect(split.prevHeldRemainQty + split.todayBuyRemainQty).toBe(c.q1);
+      expect(split.prevHeldRemainQty + split.soldFromPriorQty).toBe(split.prevHeldQty);
+      expect(split.todayBuyRemainNet + split.soldTodayBuyNet).toBe(c.NB);
+
+      // 持仓行（无昨持则不产生持仓行）
+      const positions: Position[] = c.q1 > 0
+        ? [
+            {
+              ...makePosition({ symbol: 'sz000001' as StockSymbol, qty: c.q1, avgCost: 1000 }),
+              todayBuyQty: split.todayBuyRemainQty,
+              todayBuyNet: split.todayBuyRemainNet,
+              prevHeldQty: split.prevHeldRemainQty,
+            },
+          ]
+        : [];
+      const merged = mergePositions(positions, {
+        sz000001: makeQuote({ symbol: 'sz000001' as StockSymbol, price: c.price, prevClose: c.pc }),
+      });
+
+      // 已实现（走后端同一条精确分支）
+      const realizedRow = computeTodayRealized(
+        [
+          {
+            symbol: 'sz000001' as StockSymbol,
+            symbolName: '测试标的',
+            sellQty: c.qS,
+            sellNet: c.NS,
+            holdQty: c.q1,
+            todayBuyQty: c.qB,
+            todayBuyNet: c.NB,
+          },
+        ],
+        { sz000001: { prevClose: c.pc } },
+      );
+      const summary = summarizeDayPnl(merged, realizedRow);
+      const truth = c.price * c.q1 + c.NB + c.NS - c.pc * c.q0;
+      // 严格相等（0 分差）——NB_r 与 NB_sold 互补分摊保证不漏分
+      expect(summary.total, c.name).toBe(truth);
+    }
   });
 });

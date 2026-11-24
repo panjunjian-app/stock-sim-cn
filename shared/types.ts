@@ -110,19 +110,30 @@ export interface Position {
   marketValue: Cents;
   pnl: Cents;
   pnlPct: number;
-  /** 今日买入量（股）；后端 positions 接口返回，今日无买入为 0（用于当日盈亏成本口径） */
+  /**
+   * 今日买入且**仍未卖出**的股数 tbr（后端 positions 接口按「昨持/今买/已卖」精确拆分后给出）。
+   * 注意：不是「今日买入总量」——今日买入后又被卖出（T+0 存量数据）的份额不计入此处，
+   * 其成本已通过 todayBuyNet 的剩余部分 + 已实现盈亏体现，避免重复计算。
+   * 无今日买入（或今买已全部卖出）为 0。
+   */
   todayBuyQty?: number;
   /**
-   * 今日买入实际净额（分，trades.net_amount 之和，买入为负值，已含佣金/过户费）。
+   * 今日买入且仍未卖出部分的净额 NB_r（分，买入为负值，已含佣金/过户费）。
    * 今日买入部分的当日盈亏成本基准：lastPrice × todayBuyQty + todayBuyNet（整数分、精确无舍入）。
    * 为何不用摊薄 avgCost：卖出不重算 avgCost（均价法，对剩余持仓正确），但若今日「加仓 + 卖老仓」，
    * avgCost 仍含已卖出老仓的成本，拿它算今日新买部分会失真（实测偏差可达千元级）。
    * 旧响应无此字段时前端退回 avgCost 口径。
    */
   todayBuyNet?: Cents;
+  /**
+   * 昨日持有且**仍未卖出**的股数 q0r（拆分规则见 shared/today-realized.splitDayPnlPosition）。
+   * 用于当日盈亏的昨收基准部分：(lastPrice − prevClose) × prevHeldQty。
+   * 缺省时前端退回 max(qty − todayBuyQty, 0)。正常数据下 q0r = q0 − 今日卖出量。
+   */
+  prevHeldQty?: number;
   /** 昨收价（分）；由前端 mergePositions 合并快照计算；无行情快照时为 undefined */
   prevClose?: Cents;
-  /** 当日盈亏 = (lastPrice − prevClose) × qty；无行情快照时为 undefined（展示「—」） */
+  /** 当日盈亏 = (lastPrice − prevClose) × prevHeldQty + lastPrice × todayBuyQty + todayBuyNet；无快照时 undefined（展示「—」） */
   dayPnl?: Cents;
   /** 当日盈亏比例（%）；prevClose 无效（≤0）或无快照时为 undefined */
   dayPnlPct?: number;

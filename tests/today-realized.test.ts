@@ -3,7 +3,7 @@
  * 覆盖：无卖出 / 有卖出（盈、亏、混合）/ 行情失败（prevClose 缺失 → null）/ 持仓缺快照
  */
 import { describe, expect, it } from 'vitest';
-import { computeTodayRealized, formatRealizedDetail, summarizeDayPnl } from '../shared/today-realized';
+import { computeTodayRealized, formatRealizedDetail, splitDayPnlPosition, summarizeDayPnl } from '../shared/today-realized';
 import type { TodaySellAggregate } from '../shared/today-realized';
 import type { Position, Symbol as StockSymbol, TodayRealized } from '../shared/types';
 
@@ -188,5 +188,153 @@ describe('formatRealizedDetail 明细提示文本', () => {
 
   it('空数组返回空串', () => {
     expect(formatRealizedDetail([])).toBe('');
+  });
+});
+
+// ==================== T+0 存量数据（当天买当天卖）====================
+// 生产账户 22「603324 盛剑科技」：今日 buy 2000 @29.72（NB = −5,945,546）+ sell 1500 @31.18（NS = +4,673,444）
+// → 现持仓 500；成交发生于 T+1 修复（9b307bf）上生产之前，故出现「卖到了今日买入份额」。
+// 真值（资金口径）：price×q1 + NB + NS − pc×q0 = 29.34×500 − 5,945,546 + 4,673,444 − 0 = 194,898 分。
+
+describe('splitDayPnlPosition 昨持/今买/已卖拆分', () => {
+  it('正常 T+1（卖出只来自昨持）：q0r = q0 − qS、tbr = qB、NB_r = NB', () => {
+    // 昨持 1000 + 今买 1000 + 今卖 1000 → 持仓 1000
+    const s = splitDayPnlPosition({
+      holdQty: 1000,
+      todayBuyQty: 1000,
+      todayBuyNet: -1_230_513,
+      todaySellQty: 1000,
+      todaySellNet: 1_228_872,
+    });
+    expect(s.prevHeldQty).toBe(1000); // q0
+    expect(s.prevHeldRemainQty).toBe(0); // q0r
+    expect(s.soldFromPriorQty).toBe(1000);
+    expect(s.soldFromTodayQty).toBe(0); // T+1 下恒为 0
+    expect(s.todayBuyRemainQty).toBe(1000); // tbr = qB
+    expect(s.todayBuyRemainNet).toBe(-1_230_513); // NB_r = NB
+    expect(s.soldTodayBuyNet).toBe(0);
+  });
+
+  it('T+0 残留（603324 真实数据）：qS > q0 → 超出昨持的部分按今买成本分摊', () => {
+    const s = splitDayPnlPosition({
+      holdQty: 500,
+      todayBuyQty: 2000,
+      todayBuyNet: -5_945_546,
+      todaySellQty: 1500,
+      todaySellNet: 4_673_444,
+    });
+    expect(s.prevHeldQty).toBe(0); // q0 = max(500 − 2000 + 1500, 0)
+    expect(s.prevHeldRemainQty).toBe(0);
+    expect(s.todayBuyRemainQty).toBe(500); // 剩余 500 股全部为今日买入
+    expect(s.soldFromPriorQty).toBe(0);
+    expect(s.soldFromTodayQty).toBe(1500);
+    expect(s.soldTodayBuyNet).toBe(-4_459_160); // NB × 1500/2000，远离 0 取整
+    expect(s.todayBuyRemainNet).toBe(-1_486_386); // NB_r = NB − NB_sold（互补，不漏分）
+    expect(s.todayBuyRemainNet + s.soldTodayBuyNet).toBe(-5_945_546); // 守恒
+    expect(s.prevHeldRemainQty + s.todayBuyRemainQty).toBe(500); // = q1
+  });
+
+  it('完全 T+0（昨持为 0，今买今卖清仓）：全部今买成本进入已实现', () => {
+    const s = splitDayPnlPosition({
+      holdQty: 0,
+      todayBuyQty: 1000,
+      todayBuyNet: -1_230_513,
+      todaySellQty: 1000,
+      todaySellNet: 1_228_872,
+    });
+    expect(s.prevHeldQty).toBe(0);
+    expect(s.todayBuyRemainQty).toBe(0);
+    expect(s.soldFromTodayQty).toBe(1000);
+    expect(s.soldTodayBuyNet).toBe(-1_230_513);
+    expect(s.todayBuyRemainNet).toBe(0);
+  });
+
+  it('无今买无今卖：q0 = q1，全部为昨持', () => {
+    const s = splitDayPnlPosition({ holdQty: 800, todayBuyQty: 0, todayBuyNet: 0, todaySellQty: 0, todaySellNet: 0 });
+    expect(s.prevHeldQty).toBe(800);
+    expect(s.prevHeldRemainQty).toBe(800);
+    expect(s.todayBuyRemainQty).toBe(0);
+    expect(s.soldFromPriorQty).toBe(0);
+    expect(s.soldFromTodayQty).toBe(0);
+  });
+});
+
+describe('computeTodayRealized T+0 分支', () => {
+  it('T+0 残留：已实现含今买成本，603324 实测 214,284 分（+2,142.84 元）', () => {
+    const r = computeTodayRealized(
+      [
+        {
+          symbol: 'sh603324' as StockSymbol,
+          symbolName: '盛剑科技',
+          sellQty: 1500,
+          sellNet: 4_673_444,
+          holdQty: 500,
+          todayBuyQty: 2000,
+          todayBuyNet: -5_945_546,
+        },
+      ],
+      // 故意不给行情：纯 T+0 卖出（soldFromPrior = 0）不需要昨收，不应降级
+      {},
+    );
+    expect(r.dayPnl).toBe(214_284);
+    expect(r.degraded).toBe(false);
+    expect(r.items[0].dayPnl).toBe(214_284);
+  });
+
+  it('T+0 残留 + 持仓行合计 ≡ 资金口径真值（194,898 分，差额 0）', () => {
+    const item = {
+      symbol: 'sh603324' as StockSymbol,
+      symbolName: '盛剑科技',
+      sellQty: 1500,
+      sellNet: 4_673_444,
+      holdQty: 500,
+      todayBuyQty: 2000,
+      todayBuyNet: -5_945_546,
+    };
+    const r = computeTodayRealized([item], {});
+    // 持仓行 dayPnl = price×tbr + NB_r = 29.34×500 − 1,486,386 = −19,386 分
+    const holdRow = 2934 * 500 + -1_486_386;
+    expect(holdRow).toBe(-19_386);
+    const truth = 2934 * 500 + -5_945_546 + 4_673_444; // price×q1 + NB + NS − pc×q0（q0 = 0，与昨收无关）
+    expect(truth).toBe(194_898);
+    expect(holdRow + (r.dayPnl as number)).toBe(truth); // 0 分差
+  });
+
+  it('卖出来自昨持时仍需昨收：昨收缺失 → 该股 null 且降级', () => {
+    const r = computeTodayRealized(
+      [
+        {
+          symbol: 'sh600000' as StockSymbol,
+          symbolName: '浦发银行',
+          sellQty: 100,
+          sellNet: 105_000,
+          holdQty: 0,
+          todayBuyQty: 0,
+          todayBuyNet: 0,
+        },
+      ],
+      {}, // 昨持 100 股（无今买），必须用昨收
+    );
+    expect(r.dayPnl).toBeNull();
+    expect(r.degraded).toBe(true);
+  });
+
+  it('今日全部清仓（昨持 100、无今买）：仍按昨收算已实现（有昨持份额）', () => {
+    const r = computeTodayRealized(
+      [
+        {
+          symbol: 'sh600000' as StockSymbol,
+          symbolName: '浦发银行',
+          sellQty: 100,
+          sellNet: 105_000,
+          holdQty: 0,
+          todayBuyQty: 0,
+          todayBuyNet: 0,
+        },
+      ],
+      { sh600000: { prevClose: 1000 } },
+    );
+    // q0 = max(0 − 0 + 100, 0) = 100 → soldFromPrior = 100 → 仍用昨收：105000 − 100×1000 = 5000
+    expect(r.dayPnl).toBe(5000);
   });
 });
