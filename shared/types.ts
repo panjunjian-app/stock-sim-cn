@@ -110,6 +110,12 @@ export interface Position {
   marketValue: Cents;
   pnl: Cents;
   pnlPct: number;
+  /** 昨收价（分）；由前端 mergePositions 合并快照计算；无行情快照时为 undefined */
+  prevClose?: Cents;
+  /** 当日盈亏 = (lastPrice − prevClose) × qty；无行情快照时为 undefined（展示「—」） */
+  dayPnl?: Cents;
+  /** 当日盈亏比例（%）；prevClose 无效（≤0）或无快照时为 undefined */
+  dayPnlPct?: number;
 }
 
 /** 账户总览（后端只给现金与累计入金基础值；市值/总资产/盈亏由前端合并快照计算） */
