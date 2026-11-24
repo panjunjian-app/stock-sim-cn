@@ -44,7 +44,8 @@ export function computeOverview(
   };
 }
 
-/** 持仓合并快照（lastPrice/marketValue/pnl/pnlPct） */
+/** 持仓合并快照（lastPrice/marketValue/pnl/pnlPct + 当日盈亏 prevClose/dayPnl/dayPnlPct）
+ *  当日盈亏 = (最新价 − 昨收) × qty；无行情快照时 prevClose/dayPnl/dayPnlPct 均为 undefined（前端展示「—」） */
 export function mergePositions(positions: Position[], quotes: Record<StockSymbol, Quote>): Position[] {
   return positions.map((p) => {
     const q = quotes[p.symbol];
@@ -52,6 +53,11 @@ export function mergePositions(positions: Position[], quotes: Record<StockSymbol
     const marketValue = p.qty * lastPrice;
     const pnl = marketValue - p.qty * p.avgCost;
     const pnlPct = p.avgCost > 0 ? Number(((pnl / (p.qty * p.avgCost)) * 100).toFixed(2)) : 0;
-    return { ...p, lastPrice, marketValue, pnl, pnlPct };
+    // 当日盈亏：仅在有行情快照且昨收有效时可计算
+    const prevClose = q ? q.prevClose : undefined;
+    const dayPnl = prevClose !== undefined ? ((lastPrice - prevClose) * p.qty as Cents) : undefined;
+    const dayPnlPct =
+      prevClose !== undefined && prevClose > 0 ? Number((((lastPrice - prevClose) / prevClose) * 100).toFixed(2)) : undefined;
+    return { ...p, lastPrice, marketValue, pnl, pnlPct, prevClose, dayPnl, dayPnlPct };
   });
 }
