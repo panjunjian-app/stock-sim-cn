@@ -3,8 +3,11 @@
  * 模型：下单即刻撮合 + 客户端行情轮询驱动的 tick 重试（无 Cron、无服务器常驻进程）。
  * 成交价一律取实时最新价，限价仅作为触发门槛；不做部分成交（字段已预留）。
  * 冻结：买入冻结资金（含预估费用）、卖出冻结可卖股；撤单退回；日切解锁 T+1。
+ * 委托效力：**当日有效**——跨交易日（北京日）仍 pending/partial 的委托由
+ *          expireStaleOrders 自动失效并释放冻结（见本文件「委托当日失效」小节）。
  */
 import { calcBuyFreeze, calcFees, buyNetAmount, sellNetAmount, DAILY_ORDER_LIMIT } from '../../shared/fees';
+import { ORDER_EXPIRED_REASON } from '../../shared/order-expiry';
 import { beijingDateKey, isInTradingHours, isTradingDayTs } from '../../shared/trading-calendar';
 import { checkLimitPrice, isStName, priceLimitRange } from '../../shared/validate';
 import type { Cents, Quote, Side, Symbol as StockSymbol } from '../../shared/types';
@@ -435,6 +438,44 @@ export function freezeForBuy(quantity: number, price: Cents): Cents {
   return calcBuyFreeze(quantity, price);
 }
 
+/**
+ * 释放委托占用的冻结资源（撤单与「自动失效」共用同一套语义，禁止另写一份）：
+ * - 买单：冻结资金退回可用（cash_available += frozen_cash, frozen_cash -= frozen_cash）
+ * - 卖单：冻结股数解冻（frozen_qty -= 未成交股数），同时把可卖数量还回去并封顶 qty
+ *   （封顶防止 available_qty 超过持仓的「虚高」，例如冻结前后均写 available 的存量不一致状态）
+ * 注意：只释放**未成交**部分（quantity − filled_qty），已成交部分不重复退回。
+ */
+async function releaseOrderFreeze(repo: MatchRepo, order: OrderRow): Promise<void> {
+  const unfilled = Math.max(order.quantity - (order.filled_qty ?? 0), 0);
+  if (order.side === 'buy') {
+    if (order.frozen_cash > 0) {
+      // 增量退回冻结资金（SQL 侧原子计算，避免读改写丢更新）
+      await repo.adjustCash(order.account_id, order.frozen_cash, -order.frozen_cash);
+    }
+    return;
+  }
+  if (unfilled <= 0) {
+    return; // 已全部成交：无可解冻股数
+  }
+  const pos = await repo.getPosition(order.account_id, order.symbol);
+  if (!pos) {
+    return; // 持仓已被清空（并发撤单/成交）：无可解冻
+  }
+  const frozenQty = Math.max(pos.frozen_qty - unfilled, 0);
+  await repo.upsertPosition({
+    accountId: order.account_id,
+    symbol: order.symbol,
+    symbolName: order.symbol_name,
+    qty: pos.qty,
+    // 已日切持仓的恒等式是 available = qty − frozen，故解冻后即可卖全部结算股；
+    // 封顶 qty 避免历史不一致数据把 available 抬到超过持仓（可卖 > 持仓会错卖 T+1 锁定股）
+    availableQty: Math.min(pos.available_qty + unfilled, pos.qty),
+    frozenQty,
+    avgCost: pos.avg_cost,
+    settledDate: pos.settled_date,
+  });
+}
+
 /** 撤单：退回冻结资金/持仓，置 cancelled（乐观锁防并发双撤） */
 export async function cancelOrder(repo: MatchRepo, orderId: number): Promise<OrderRow> {
   const order = await repo.getOrder(orderId);
@@ -453,26 +494,57 @@ export async function cancelOrder(repo: MatchRepo, orderId: number): Promise<Ord
   if (!guarded) {
     throw new MatchError(3007, '该委托刚被处理（成交或撤销），请刷新查看');
   }
-  if (order.side === 'buy' && order.frozen_cash > 0) {
-    // 增量退回冻结资金（原子计算）
-    await repo.adjustCash(order.account_id, order.frozen_cash, -order.frozen_cash);
-  } else if (order.side === 'sell') {
-    const pos = await repo.getPosition(order.account_id, order.symbol);
-    if (pos) {
-      await repo.upsertPosition({
-        accountId: order.account_id,
-        symbol: order.symbol,
-        symbolName: order.symbol_name,
-        qty: pos.qty,
-        availableQty: pos.available_qty + order.quantity - order.filled_qty,
-        frozenQty: Math.max(pos.frozen_qty - (order.quantity - order.filled_qty), 0),
-        avgCost: pos.avg_cost,
-        settledDate: pos.settled_date,
-      });
-    }
-  }
+  await releaseOrderFreeze(repo, order);
   const updated = await repo.getOrder(orderId);
   return updated as OrderRow;
+}
+
+/**
+ * 委托当日失效：把「创建日（北京）早于今日北京日」且仍 pending/partial 的委托置为终态，
+ * 并释放其冻结的股数 / 资金（复用 releaseOrderFreeze）。
+ *
+ * 规则细节：
+ * - 判定口径为**北京交易日日期键**（beijingDateKey），与 T+1 日切、当日盈亏口径一致；
+ *   不使用 isTradingDay 门禁——周五的委托在周六访问时同样必须失效（它已无当日效力）。
+ * - 状态复用 `cancelled` + reject_reason 标记（DB CHECK 约束无法扩展枚举，见 shared/order-expiry.ts）。
+ * - 幂等 + 并发安全：以 `WHERE id=? AND status IN ('pending','partial')` 乐观锁占位，
+ *   未抢到即说明已被并发 tick / 用户撤单处理，**不重试、不二次释放**。
+ * - tick 未跑也不会让用户永久卡死：读持仓、委托列表、下单前置校验都会惰性调用本函数。
+ *
+ * @returns 本次实际失效的委托笔数
+ */
+export async function expireStaleOrders(repo: MatchRepo, accountId: number, now: number = Date.now()): Promise<number> {
+  const todayKey = beijingDateKey(now);
+  const open = await repo.listOpenOrders(accountId);
+  let expired = 0;
+  for (const o of open) {
+    if (o.status !== 'pending' && o.status !== 'partial') {
+      continue;
+    }
+    const createdTs = Date.parse(o.created_at);
+    if (!Number.isFinite(createdTs)) {
+      continue; // created_at 异常：宁可不失效，也不误伤当日新单
+    }
+    if (beijingDateKey(createdTs) >= todayKey) {
+      continue; // 当日（北京日）委托仍有效
+    }
+    const guarded = await repo.updateOrderGuarded(
+      o.id,
+      {
+        status: 'cancelled',
+        reject_reason: ORDER_EXPIRED_REASON,
+        frozen_cash: o.side === 'buy' ? 0 : o.frozen_cash,
+        updated_at: new Date(now).toISOString(),
+      },
+      ['pending', 'partial'],
+    );
+    if (!guarded) {
+      continue; // 并发落败：交由抢到的那一方释放冻结，绝不二次释放
+    }
+    await releaseOrderFreeze(repo, o);
+    expired++;
+  }
+  return expired;
 }
 
 /** T+1 日切：settled_date 非空且 < 今日交易日的持仓解锁为可卖（available = qty - frozen）
@@ -682,6 +754,9 @@ export async function submitOrder(
   if (!isInTradingHours(now)) {
     throw new MatchError(3001, '当前非交易时段（9:30-11:30 / 13:00-15:00）');
   }
+  // 1.5 惰性结算：先让跨日未成交委托失效并释放冻结，
+  //     否则陈旧挂单会永久占用可卖股数 / 可用资金（用户看得到持仓却永远卖不出）
+  await expireStaleOrders(repo, input.accountId, now);
   // 2. 防刷：当日委托 < 200 笔
   const todayStartIso = new Date(beijingDateKey(now) + 'T00:00:00+08:00').toISOString();
   const todayCount = await repo.countOrdersToday(input.accountId, todayStartIso);
@@ -778,10 +853,18 @@ export async function submitOrder(
   return { order: (await repo.getOrder(id)) as OrderRow, matched: r.matched, trade: r.trade };
 }
 
-/** tick：处理账户全部未成交委托（幂等：无 open 委托返回 0） */
-export async function runTick(repo: MatchRepo, market: MarketQuerier, accountId: number): Promise<number> {
-  const todayKey = beijingDateKey();
-  // 日切结算优先（T+1 解锁 + 遗留委托处理）
+/** tick：处理账户全部未成交委托（幂等：无 open 委托返回 0）
+ *  顺序：①跨交易日委托失效（释放冻结）→ ②T+1 日切解锁 → ③重试撮合当日剩余委托 */
+export async function runTick(
+  repo: MatchRepo,
+  market: MarketQuerier,
+  accountId: number,
+  now: number = Date.now(),
+): Promise<number> {
+  const todayKey = beijingDateKey(now);
+  // 委托当日有效：先失效跨日挂单，再日切（日切按 qty − frozen_qty 重算可卖，顺序不能反）
+  await expireStaleOrders(repo, accountId, now);
+  // 日切结算（T+1 解锁）
   await settlePositions(repo, accountId, todayKey);
   const open = await repo.listOpenOrders(accountId);
   let matchedCount = 0;

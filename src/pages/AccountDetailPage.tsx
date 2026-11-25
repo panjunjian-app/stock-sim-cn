@@ -201,7 +201,7 @@ export default function AccountDetailPage() {
 
       {tab === 'positions' && mergedPositions.length > 0 && (
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2.25, fontSize: 11.5, color: MUJI.ink3, letterSpacing: '0.05em' }}>
-          <span>＊ 可卖数量 = 0 表示今日买入，受 A股 T+1 规则限制，次一交易日方可卖出</span>
+          <span>＊ 可卖数量 = 持仓数量 − 冻结数量；为 0 可能是「今日买入受 A股 T+1 限制」（次一交易日解锁），也可能是「有未成交卖单冻结股份」——后者请到「委托」页撤单解冻。委托仅当日有效，收盘未成交自动失效并解冻。</span>
           <span className="num">共 {mergedPositions.length} 只持仓 · 市值合计 {formatYuanSymbol(overview.marketValue)}</span>
         </Box>
       )}

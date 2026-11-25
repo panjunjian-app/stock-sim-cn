@@ -5,6 +5,7 @@
 import { Box, Button, Typography } from '@mui/material';
 import type { Position, Quote } from '../../../shared/types';
 import { formatPct, formatSignedYuan, formatYuan } from '../../../shared/money';
+import { describeAvailable } from '../../utils/available-label';
 import { pnlColor } from '../../components/PnlText';
 import { MUJI } from '../../theme/muji-theme';
 
@@ -25,6 +26,8 @@ export default function PositionCard({ position, quote, onTrade, onLiquidate }: 
   const pnl = marketValue - cost;
   const pnlPct = cost > 0 ? Number(((pnl / cost) * 100).toFixed(2)) : 0;
   const color = pnlColor(pnl);
+  // 可卖为 0 的真实原因（挂单冻结 / T+1 锁定），与桌面持仓表同口径
+  const avail = describeAvailable(position);
 
   return (
     <Box sx={{ bgcolor: MUJI.card, border: `1px solid ${MUJI.line}`, borderRadius: '6px', px: 2, py: 1.5 }}>
@@ -43,8 +46,14 @@ export default function PositionCard({ position, quote, onTrade, onLiquidate }: 
       <Box className="num" sx={{ display: 'flex', gap: 2.5, mt: 1, fontSize: 11.5, color: MUJI.ink3 }}>
         <span>成本 {formatYuan(position.avgCost)}</span>
         <span>持仓 {position.qty} 股</span>
-        <span>可卖 {position.availableQty} 股</span>
+        <span title={avail.hint ?? undefined}>可卖 {avail.zeroReason ?? `${avail.available} 股`}</span>
       </Box>
+      {/* 挂单冻结单独提示：用户可直接到「委托」页撤单解冻 */}
+      {avail.frozenQty > 0 && (
+        <Typography className="num" sx={{ fontSize: 10.5, color: MUJI.ink3, mt: 0.5 }}>
+          有未成交卖单冻结 {avail.frozenQty} 股，去「委托」页撤单即可卖出
+        </Typography>
+      )}
 
       {/* 盈亏：当日盈亏（有昨收快照时）+ 浮动盈亏 */}
       {position.dayPnl !== undefined ? (

@@ -1,7 +1,7 @@
 import { ApiError, CODE, handleError, ok } from '../../../lib/response';
 import { requireAuth } from '../../../lib/auth';
 import { requireOwnedAccount } from '../../../lib/account-service';
-import { createD1Repo, submitOrder, MatchError } from '../../../lib/matching';
+import { createD1Repo, expireStaleOrders, submitOrder, MatchError } from '../../../lib/matching';
 import { marketData } from '../../../lib/market-data';
 import { guardContestTrading } from '../../../lib/contest';
 import { checkOrderInput } from '../../../../shared/validate';
@@ -41,11 +41,13 @@ export function toOrderDto(o: OrderRow): Order {
   };
 }
 
-/** GET /api/accounts/:id/orders?status= — 委托列表 */
+/** GET /api/accounts/:id/orders?status= — 委托列表（读前惰性失效跨日挂单，避免列表长期显示「待成交」） */
 export const onRequestGet = async (ctx: PagesContext<Params>): Promise<Response> => {
   try {
     const auth = await requireAuth(ctx);
     const acc = await requireOwnedAccount(ctx.env.DB, auth.userId, Number(ctx.params.id));
+    // 委托当日有效：先把跨交易日未成交委托置为失效并释放冻结（幂等）
+    await expireStaleOrders(createD1Repo(ctx.env.DB), acc.id);
     const url = new URL(ctx.request.url);
     const status = url.searchParams.get('status');
     const allowed = ['pending', 'partial', 'filled', 'cancelled', 'rejected'];

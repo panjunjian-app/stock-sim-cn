@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableRow, TableContainer, Paper, Button, Typography } from '@mui/material';
 import type { Order } from '../../shared/types';
 import { formatYuan } from '../../shared/money';
+import { isOrderExpired } from '../../shared/order-expiry';
 import { MUJI } from '../theme/muji-theme';
 import { ApiError } from '../services/http';
 import { accountApi } from '../services/account-api';
@@ -18,6 +19,11 @@ const STATUS_TEXT: Record<Order['status'], string> = {
   cancelled: '已撤单',
   rejected: '废单',
 };
+
+/** 状态文案：系统自动失效（跨交易日未成交）与用户主动撤单共用 cancelled 状态，需区分展示 */
+function statusTextOf(o: Order): string {
+  return isOrderExpired(o) ? '已失效' : STATUS_TEXT[o.status];
+}
 
 const HEADERS = ['时间', '股票名称 / 代码', '方向', '类型', '委托价', '数量', '成交价', '状态', '操作'];
 
@@ -48,6 +54,7 @@ export default function OrdersTable({ orders, onChanged }: OrdersTableProps) {
   }
 
   const fmtTime = (iso: string) => `${iso.slice(5, 10)} ${iso.slice(11, 19)}`;
+  const hasOpen = orders.some((o) => o.status === 'pending' || o.status === 'partial');
 
   return (
     <>
@@ -93,7 +100,7 @@ export default function OrdersTable({ orders, onChanged }: OrdersTableProps) {
                     }}
                     title={o.rejectReason ?? undefined}
                   >
-                    {STATUS_TEXT[o.status]}
+                    {statusTextOf(o)}
                   </Typography>
                 </TableCell>
                 <TableCell align="right">
@@ -114,6 +121,12 @@ export default function OrdersTable({ orders, onChanged }: OrdersTableProps) {
           </TableBody>
         </Table>
       </TableContainer>
+      {/* 撤单引导：挂单会冻结股数/资金，用户需知道「委托当日有效 + 可主动撤单解冻」 */}
+      {hasOpen && (
+        <Typography sx={{ px: 3.25, py: 1.25, fontSize: 11, color: MUJI.ink3, letterSpacing: '0.05em' }}>
+          ＊ 未成交委托仅当日有效，收盘后自动失效并解冻；若持仓「可卖数量」为 0 且显示「挂单冻结」，点右侧「撤单」即可立即解冻卖出。
+        </Typography>
+      )}
     </>
   );
 }

@@ -1,6 +1,7 @@
 import { handleError, ok } from '../../../lib/response';
 import { requireAuth } from '../../../lib/auth';
 import { listPositions, requireOwnedAccount } from '../../../lib/account-service';
+import { createD1Repo, expireStaleOrders } from '../../../lib/matching';
 import { marketData } from '../../../lib/market-data';
 import { beijingDateKey, beijingToTs } from '../../../../shared/trading-calendar';
 import { computeTodayRealized, splitDayPnlPosition } from '../../../../shared/today-realized';
@@ -91,11 +92,16 @@ async function fetchPrevCloseMeta(
  * 持仓表只列 qty>0 的股票，今日卖出/清仓部分的当日盈亏不在明细里，需在接口层补出，
  * 前端才能把「明细合计」与顶部汇总（资金口径）对齐。
  * 拆分口径与恒等式见 shared/today-realized.ts 顶部注释（含 T+0 存量数据场景）。
+ *
+ * ⚠️ 惰性结算：读持仓前先让「跨交易日未成交委托」失效并释放冻结股数，
+ * 否则用户会看到「持仓 200 / 可卖 0」却永远卖不出（陈旧挂单把股冻死，且 tick 未跑时无人清理）。
  */
 export const onRequestGet = async (ctx: PagesContext<Params>): Promise<Response> => {
   try {
     const auth = await requireAuth(ctx);
     const acc = await requireOwnedAccount(ctx.env.DB, auth.userId, Number(ctx.params.id));
+    // 惰性日切：委托当日失效（幂等；无条件更新，最坏情况是 0 笔）
+    await expireStaleOrders(createD1Repo(ctx.env.DB), acc.id);
     const positions = await listPositions(ctx.env.DB, acc.id);
     // 今日（北京 00:00 起）：当日盈亏需对今日买入部分用买入成本而非昨收
     // ⚠️ trades.traded_at 是 TEXT 列（ISO UTC 字符串）：绑定参数必须是同构的 ISO 字符串，

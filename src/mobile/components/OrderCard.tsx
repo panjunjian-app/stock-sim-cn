@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogContentText, Typography } from '@mui/material';
 import type { Order } from '../../../shared/types';
 import { formatYuan, formatYuanSymbol } from '../../../shared/money';
+import { isOrderExpired } from '../../../shared/order-expiry';
 import { sideText } from '../../../shared/validate';
 import { MUJI } from '../../theme/muji-theme';
 
@@ -16,6 +17,11 @@ const STATUS_TEXT: Record<Order['status'], string> = {
   cancelled: '已撤单',
   rejected: '已废单',
 };
+
+/** 状态文案：系统自动失效（委托当日有效，收盘未成交）与用户主动撤单共用 cancelled 状态 */
+function statusTextOf(o: Order): string {
+  return isOrderExpired(o) ? '已失效' : STATUS_TEXT[o.status];
+}
 
 export interface OrderCardProps {
   order: Order;
@@ -54,7 +60,7 @@ export default function OrderCard({ order, onCancel }: OrderCardProps) {
           {order.symbol.replace(/^(sh|sz)/, '')}
         </Typography>
         <Typography sx={{ fontSize: 11.5, color: order.status === 'rejected' ? MUJI.up : MUJI.ink3, ml: 'auto' }}>
-          {STATUS_TEXT[order.status]}
+          {statusTextOf(order)}
         </Typography>
       </Box>
 
@@ -69,6 +75,13 @@ export default function OrderCard({ order, onCancel }: OrderCardProps) {
 
       {order.status === 'rejected' && order.rejectReason && (
         <Typography sx={{ fontSize: 11.5, color: MUJI.up, mt: 0.75 }}>废单原因：{order.rejectReason}</Typography>
+      )}
+
+      {/* 自动失效说明：委托当日有效，收盘未成交即失效并解冻 */}
+      {isOrderExpired(order) && (
+        <Typography sx={{ fontSize: 11, color: MUJI.ink3, mt: 0.75 }}>
+          委托仅当日有效，收盘未成交已自动失效，冻结的股数/资金已解冻
+        </Typography>
       )}
 
       <Typography className="num" sx={{ fontSize: 10.5, color: MUJI.ink3, mt: 0.75 }}>

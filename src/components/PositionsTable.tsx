@@ -4,6 +4,7 @@ import { formatPct, formatSignedYuan, formatYuan } from '../../shared/money';
 import { formatRealizedDetail, summarizeDayPnl } from '../../shared/today-realized';
 import type { DayPnlSummary } from '../../shared/today-realized';
 import PnlText, { pnlColor } from './PnlText';
+import { describeAvailable } from '../utils/available-label';
 import { MUJI } from '../theme/muji-theme';
 
 export interface PositionsTableProps {
@@ -155,7 +156,10 @@ export default function PositionsTable({ positions, todayRealized, onQuickOrder 
           </TableRow>
         </TableHead>
         <TableBody>
-          {positions.map((p) => (
+          {positions.map((p) => {
+            // 可卖数量按真实原因标注（挂单冻结 / T+1 锁定），不再一律写「（T+1）」
+            const avail = describeAvailable(p);
+            return (
             <TableRow key={p.symbol} hover>
               <TableCell sx={{ pl: 3.25 }}>
                 <span style={{ letterSpacing: '0.1em' }}>{p.symbolName}</span>
@@ -164,11 +168,13 @@ export default function PositionsTable({ positions, todayRealized, onQuickOrder 
                 </span>
               </TableCell>
               <TableCell align="right" className="num">{p.qty}</TableCell>
-              <TableCell align="right" className="num">
-                {p.availableQty > 0 ? (
-                  p.availableQty
+              <TableCell align="right" className="num" title={avail.hint ?? undefined}>
+                {avail.zeroReason === null ? (
+                  avail.available
                 ) : (
-                  <Typography component="span" sx={{ color: MUJI.ink3 }}>0（T+1）</Typography>
+                  <Typography component="span" sx={{ color: avail.frozenQty > 0 ? MUJI.ink2 : MUJI.ink3 }}>
+                    {avail.zeroReason}
+                  </Typography>
                 )}
               </TableCell>
               <TableCell align="right" className="num">{formatYuan(p.avgCost)}</TableCell>
@@ -217,7 +223,8 @@ export default function PositionsTable({ positions, todayRealized, onQuickOrder 
                 </span>
               </TableCell>
             </TableRow>
-          ))}
+            );
+          })}
           {/* 底部合计条：持仓合计 + 今日卖出已实现 = 合计当日盈亏（对齐顶部汇总口径） */}
           <DayPnlSummaryRows summary={summary} />
         </TableBody>
