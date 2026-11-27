@@ -83,6 +83,26 @@ export function computeIdleChargeDays(days: string[], trades: IdleTradeRow[]): S
 }
 
 /**
+ * 进程内结算水位：contestId → 已完整结算过的 lastDay。
+ *
+ * 为什么需要：GET /api/contests 被前端 30s 轮询，原先每次都对该比赛所有参赛账户
+ * 全量重放成交记录 + 扫描全部罚息流水，实测 24h 内跑了 19,568 次、读掉约 90 万行
+ * （占当日 rows_read 的四分之一）。而结算对象是「已收市交易日的空仓罚息」，
+ * 同一 lastDay 内结果恒定，重复执行没有任何业务收益。
+ *
+ * 安全性：扣费写入本身用 NOT EXISTS 幂等，memo 只跳过重复计算，不承担正确性；
+ *        isolate 冷启动后最坏多算一次，不会漏扣、不会重扣。
+ * 副作用边界：同一 isolate 内若某账户因现金不足未扣费，当天充值后不会即时补扣，
+ *        需等 isolate 回收或跨交易日（跨日后 lastDay 变化、memo 失效，自动重算补扣）。
+ */
+const settledMemo = new Map<number, string>();
+
+/** 仅供测试：清空进程内结算水位 */
+export function __resetIdleFeeSettlementMemo(): void {
+  settledMemo.clear();
+}
+
+/**
  * 对单场 active 比赛结算游手好闲费（幂等：已有扣费记录的交易日自动跳过；
  * 空仓连续计数始终全量重放，与是否已扣无关，保证「建仓清零/重启」语义正确）。
  * 调用时机：GET /api/contests（finishDueContests 之后、仅 active 比赛）。
@@ -91,6 +111,9 @@ export async function settleIdleFees(db: PagesContext['env']['DB'], contest: Con
   const lastDay = lastSettledTradingDay(now);
   if (!lastDay || !contest.start_date || contest.start_date > lastDay) {
     return; // 尚无已收市交易日，或比赛尚未开赛
+  }
+  if (settledMemo.get(contest.id) === lastDay) {
+    return; // 同一结算日已在本 isolate 内完整结算过
   }
   const days = tradingDaysBetween(contest.start_date, lastDay);
   if (days.length === 0) {
@@ -158,4 +181,10 @@ export async function settleIdleFees(db: PagesContext['env']['DB'], contest: Con
       }
     }
   }
+
+  // 完整跑完（无异常）才登记水位：中途抛错不写，下次请求会重试
+  if (settledMemo.size > 200) {
+    settledMemo.clear(); // 防御性上限，比赛数量增长时避免长期 isolate 内存膨胀
+  }
+  settledMemo.set(contest.id, lastDay);
 }
